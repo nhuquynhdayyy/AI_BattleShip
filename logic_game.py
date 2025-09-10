@@ -53,6 +53,29 @@ class Board:
             ship.reset()
         self.ships = []
 
+    # def _is_valid_placement(self, ship_obj, start_row, start_col, orientation):
+    #     if orientation == "horizontal":
+    #         if start_col + ship_obj.size > self.cols: return False
+    #     else:
+    #         if start_row + ship_obj.size > self.rows: return False
+
+    #     potential_coords = []
+    #     for i in range(ship_obj.size):
+    #         if orientation == "horizontal":
+    #             potential_coords.append((start_row, start_col + i))
+    #         else:
+    #             potential_coords.append((start_row + i, start_col))
+
+    #     for r, c in potential_coords:
+    #         if self.grid[r][c] == CellState.SHIP: return False
+    #         for dr in [-1,0,1]:
+    #             for dc in [-1,0,1]:
+    #                 nr, nc = r+dr, c+dc
+    #                 if 0 <= nr < self.rows and 0 <= nc < self.cols:
+    #                     if self.grid[nr][nc] == CellState.SHIP:
+    #                         return False
+    #     return True
+
     def _is_valid_placement(self, ship_obj, start_row, start_col, orientation):
         if orientation == "horizontal":
             if start_col + ship_obj.size > self.cols: return False
@@ -66,15 +89,12 @@ class Board:
             else:
                 potential_coords.append((start_row + i, start_col))
 
+        # ❌ Bỏ kiểm tra 8 ô xung quanh, chỉ check chồng trực tiếp
         for r, c in potential_coords:
-            if self.grid[r][c] == CellState.SHIP: return False
-            for dr in [-1,0,1]:
-                for dc in [-1,0,1]:
-                    nr, nc = r+dr, c+dc
-                    if 0 <= nr < self.rows and 0 <= nc < self.cols:
-                        if self.grid[nr][nc] == CellState.SHIP:
-                            return False
+            if self.grid[r][c] == CellState.SHIP:
+                return False
         return True
+
 
     def place_ship(self, ship_obj, start_row, start_col, orientation):
         if not self._is_valid_placement(ship_obj, start_row, start_col, orientation):
