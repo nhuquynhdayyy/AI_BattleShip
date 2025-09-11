@@ -1,14 +1,32 @@
-# logic_game.py
+# FILE: logic_game.py
+# PHIÊN BẢN HOÀN CHỈNH - KHÔNG LƯỢC BỎ LOGIC
+
 import random
+import os
+from datetime import datetime
+
+# ==============================================================================
+# SECTION 1: CÁC LỚP LOGIC CỐT LÕI
+# ==============================================================================
 
 class CellState:
+    """Định nghĩa các trạng thái của một ô."""
     EMPTY = 0
     SHIP = 1
     HIT = 2
     MISS = 3
     SUNK_SHIP = 4
 
+FLEET_CONFIG = [
+    {"name": "Carrier", "size": 5},
+    {"name": "Battleship", "size": 4},
+    {"name": "Cruiser", "size": 3},
+    {"name": "Submarine", "size": 3},
+    {"name": "Destroyer", "size": 2},
+]
+
 class Ship:
+    """Đại diện cho một con tàu."""
     def __init__(self, name, size):
         self.name = name
         self.size = size
@@ -25,214 +43,167 @@ class Ship:
             return True
         return False
 
-    def reset(self):
-        self.hits_taken = 0
-        self.is_sunk = False
-        self.coordinates = []
-        self.orientation = None
-        self.start_pos = None
-
-FLEET_CONFIG = [
-    {"name": "Carrier", "size": 5},
-    {"name": "Battleship", "size": 4},
-    {"name": "Cruiser", "size": 3},
-    {"name": "Submarine", "size": 3},
-    {"name": "Destroyer", "size": 2},
-]
-
 class Board:
+    """Quản lý bản đồ, đặt tàu, và xử lý phát bắn."""
     def __init__(self, rows=10, cols=10):
         self.rows = rows
         self.cols = cols
         self.grid = [[CellState.EMPTY for _ in range(cols)] for _ in range(rows)]
         self.ships = []
 
-    def reset_board(self):
-        self.grid = [[CellState.EMPTY for _ in range(self.cols)] for _ in range(self.rows)]
-        for ship in self.ships:
-            ship.reset()
-        self.ships = []
-
-    # def _is_valid_placement(self, ship_obj, start_row, start_col, orientation):
-    #     if orientation == "horizontal":
-    #         if start_col + ship_obj.size > self.cols: return False
-    #     else:
-    #         if start_row + ship_obj.size > self.rows: return False
-
-    #     potential_coords = []
-    #     for i in range(ship_obj.size):
-    #         if orientation == "horizontal":
-    #             potential_coords.append((start_row, start_col + i))
-    #         else:
-    #             potential_coords.append((start_row + i, start_col))
-
-    #     for r, c in potential_coords:
-    #         if self.grid[r][c] == CellState.SHIP: return False
-    #         for dr in [-1,0,1]:
-    #             for dc in [-1,0,1]:
-    #                 nr, nc = r+dr, c+dc
-    #                 if 0 <= nr < self.rows and 0 <= nc < self.cols:
-    #                     if self.grid[nr][nc] == CellState.SHIP:
-    #                         return False
-    #     return True
-
-    def _is_valid_placement(self, ship_obj, start_row, start_col, orientation):
+    def _is_valid_placement(self, ship_size, start_row, start_col, orientation):
+        """
+        *** PHIÊN BẢN MỚI: CHỈ KIỂM TRA CHỒNG CHÉO, CHO PHÉP TÀU CHẠM NHAU ***
+        Kiểm tra xem vị trí đặt tàu có hợp lệ không (trong biên, không chồng chéo).
+        """
+        # 1. Kiểm tra không nằm ngoài biên (giữ nguyên)
         if orientation == "horizontal":
-            if start_col + ship_obj.size > self.cols: return False
-        else:
-            if start_row + ship_obj.size > self.rows: return False
-
-        potential_coords = []
-        for i in range(ship_obj.size):
-            if orientation == "horizontal":
-                potential_coords.append((start_row, start_col + i))
-            else:
-                potential_coords.append((start_row + i, start_col))
-
-        # ❌ Bỏ kiểm tra 8 ô xung quanh, chỉ check chồng trực tiếp
-        for r, c in potential_coords:
-            if self.grid[r][c] == CellState.SHIP:
+            if not (0 <= start_row < self.rows and 0 <= start_col < self.cols and start_col + ship_size <= self.cols):
                 return False
-        return True
+        else: # "vertical"
+            if not (0 <= start_row < self.rows and 0 <= start_col < self.cols and start_row + ship_size <= self.rows):
+                return False
 
+        # 2. Lấy danh sách tọa độ tiềm năng (giữ nguyên)
+        potential_coords = []
+        for i in range(ship_size):
+            r = start_row + (i if orientation == "vertical" else 0)
+            c = start_col + (i if orientation == "horizontal" else 0)
+            potential_coords.append((r, c))
+
+        # 3. *** THAY ĐỔI QUAN TRỌNG ***
+        # Chỉ kiểm tra chồng chéo trực tiếp, không kiểm tra các ô xung quanh
+        for r, c in potential_coords:
+            # Nếu ô đó đã có tàu (không phải EMPTY) thì không hợp lệ
+            if self.grid[r][c] != CellState.EMPTY:
+                return False
+                
+        return True # Nếu không có ô nào bị chồng chéo, vị trí này là hợp lệ
 
     def place_ship(self, ship_obj, start_row, start_col, orientation):
-        if not self._is_valid_placement(ship_obj, start_row, start_col, orientation):
-            return False
-        coords = []
-        for i in range(ship_obj.size):
-            if orientation == "horizontal":
-                r, c = start_row, start_col+i
-            else:
-                r, c = start_row+i, start_col
-            self.grid[r][c] = CellState.SHIP
-            coords.append((r,c))
-        ship_obj.coordinates = coords
-        ship_obj.start_pos = (start_row, start_col)
-        ship_obj.orientation = orientation
-        self.ships.append(ship_obj)
-        return True
+        if self._is_valid_placement(ship_obj.size, start_row, start_col, orientation):
+            ship_obj.start_pos = (start_row, start_col)
+            ship_obj.orientation = orientation
+            ship_obj.coordinates = [] # Đảm bảo tọa độ cũ được xóa
+            for i in range(ship_obj.size):
+                r = start_row + (i if orientation == "vertical" else 0)
+                c = start_col + (i if orientation == "horizontal" else 0)
+                self.grid[r][c] = CellState.SHIP
+                ship_obj.coordinates.append((r, c))
+            self.ships.append(ship_obj)
+            return True
+        return False
 
     def receive_shot(self, row, col):
         if not (0 <= row < self.rows and 0 <= col < self.cols):
             return "Invalid", None
-        state = self.grid[row][col]
-        if state in [CellState.HIT, CellState.MISS, CellState.SUNK_SHIP]:
+        current_state = self.grid[row][col]
+        if current_state in [CellState.HIT, CellState.MISS, CellState.SUNK_SHIP]:
             return "Already_Shot", None
-        if state == CellState.SHIP:
+        if current_state == CellState.SHIP:
             self.grid[row][col] = CellState.HIT
-            hit_ship = None
             for ship in self.ships:
                 if (row, col) in ship.coordinates:
-                    hit_ship = ship
-                    break
-            if hit_ship:
-                if hit_ship.take_hit():
-                    for r,c in hit_ship.coordinates:
-                        self.grid[r][c] = CellState.SUNK_SHIP
-                    return "Sunk", hit_ship.name
-                else:
-                    return "Hit", hit_ship.name
-            return "Hit", None
+                    if ship.take_hit():
+                        for r_s, c_s in ship.coordinates:
+                            self.grid[r_s][c_s] = CellState.SUNK_SHIP
+                        return "Sunk", ship
+                    else:
+                        return "Hit", ship
         else:
             self.grid[row][col] = CellState.MISS
             return "Miss", None
 
-    def print_board(self, show_ships=True):
-        print("   A B C D E F G H I J")
-        for r_idx, row in enumerate(self.grid):
-            print(f"{r_idx+1:2d}|", end=" ")
-            for cell in row:
-                if cell == CellState.EMPTY: print("~", end=" ")
-                elif cell == CellState.SHIP: print("S", end=" ") if show_ships else print("~", end=" ")
-                elif cell == CellState.HIT: print("X", end=" ")
-                elif cell == CellState.MISS: print("O", end=" ")
-                elif cell == CellState.SUNK_SHIP: print("D", end=" ")
-            print()
-
 class GameState:
+    """Lớp quản lý trạng thái tổng thể của trò chơi."""
     def __init__(self):
         self.player_board = Board()
-        self.player_tracking_board = Board()
         self.ai_board = Board()
-        self.ai_tracking_board = Board()
         self.player_fleet = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
         self.ai_fleet = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
         self.current_turn = "Player"
-        self.turn_count = 0
-        self.game_over = False
         self.winner = None
 
-    def setup_game(self):
-        self.player_fleet = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
-        self.player_board.reset_board()
-        # đặt cứng để test nhanh
-        self.player_board.place_ship(self.player_fleet[0], 0,0,"horizontal")
-        self.player_board.place_ship(self.player_fleet[1], 2,0,"vertical")
-        self.player_board.place_ship(self.player_fleet[2], 0,7,"vertical")
-        self.player_board.place_ship(self.player_fleet[3], 5,5,"horizontal")
-        self.player_board.place_ship(self.player_fleet[4], 9,2,"horizontal")
-        print("Player board:")
-        self.player_board.print_board(show_ships=True)
+    def check_game_over(self):
+        """Kiểm tra xem game đã kết thúc chưa và ai là người chiến thắng."""
+        if all(ship.is_sunk for ship in self.ai_fleet):
+            self.winner = "Player"
+            return True
+        if all(ship.is_sunk for ship in self.player_fleet):
+            self.winner = "AI"
+            return True
+        return False
+        
+    def switch_turn(self):
+        """Chuyển lượt chơi."""
+        self.current_turn = "AI" if self.current_turn == "Player" else "Player"
 
-        self.ai_fleet = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
-        self.ai_board.reset_board()
-        self._ai_auto_place_ships()
-        print("\nAI board (debug only):")
-        self.ai_board.print_board(show_ships=True)
+# ==============================================================================
+# SECTION 2: CÁC HÀM TIỆN ÍCH ĐƯỢC MANG VÀO ĐÂY
+# ==============================================================================
+# Các hàm này không phải là một phần của lớp nào, nhưng có thể được gọi từ
+# các file khác (như gui_game.py) để thực hiện các tác vụ cụ thể.
 
-    def _ai_auto_place_ships(self):
-        for ship in self.ai_fleet:
-            placed = False
-            while not placed:
-                r = random.randint(0, self.ai_board.rows-1)
-                c = random.randint(0, self.ai_board.cols-1)
-                orientation = random.choice(["horizontal","vertical"])
-                placed = self.ai_board.place_ship(ship, r,c,orientation)
+def ai_auto_place_ships(board, fleet):
+    """Tự động đặt tàu cho AI một cách ngẫu nhiên và hợp lệ."""
+    for ship in fleet:
+        placed = False
+        # Tăng số lần thử để tránh treo game nếu không tìm được vị trí
+        for _ in range(100): 
+            row = random.randint(0, board.rows - 1)
+            col = random.randint(0, board.cols - 1)
+            orientation = random.choice(["horizontal", "vertical"])
+            if board.place_ship(ship, row, col, orientation):
+                placed = True
+                break
+        if not placed:
+            # Xử lý trường hợp không thể đặt tàu, có thể cần reset và thử lại
+            print(f"Cảnh báo: Không thể đặt tàu {ship.name} cho AI. Bố cục có thể không đầy đủ.")
 
-    def player_shot(self, row, col):
-        if self.game_over or self.current_turn != "Player":
-            return "Not_Player_Turn"
-        result, ship_name = self.ai_board.receive_shot(row,col)
-        if result in ["Hit","Sunk"]:
-            self.player_tracking_board.grid[row][col] = CellState.HIT
-            if result == "Sunk":
-                for ship in self.ai_fleet:
-                    if ship.name == ship_name:
-                        for r,c in ship.coordinates:
-                            self.player_tracking_board.grid[r][c] = CellState.SUNK_SHIP
-            if all(ship.is_sunk for ship in self.ai_fleet):
-                self.game_over = True
-                self.winner = "Player"
-                return "Win"
-        elif result == "Miss":
-            self.player_tracking_board.grid[row][col] = CellState.MISS
-        elif result in ["Already_Shot","Invalid"]:
-            return result
-        self.current_turn = "AI"
-        self.turn_count += 1
-        return result
 
-    def ai_shot(self, ai_module):
-        if self.game_over or self.current_turn != "AI":
-            return "Not_AI_Turn"
-        r,c = ai_module.choose_move()
-        result, ship_name = self.player_board.receive_shot(r,c)
-        if result in ["Hit","Sunk"]:
-            self.ai_tracking_board.grid[r][c] = CellState.HIT
-            if result == "Sunk":
-                for ship in self.player_fleet:
-                    if ship.name == ship_name:
-                        for r2,c2 in ship.coordinates:
-                            self.ai_tracking_board.grid[r2][c2] = CellState.SUNK_SHIP
-            if all(ship.is_sunk for ship in self.player_fleet):
-                self.game_over = True
-                self.winner = "AI"
-                return "Win"
-        elif result == "Miss":
-            self.ai_tracking_board.grid[r][c] = CellState.MISS
-        elif result in ["Already_Shot","Invalid"]:
-            return result
-        self.current_turn = "Player"
-        self.turn_count += 1
-        return result
+def display_fleet_status(ships):
+    """Tạo ra một chuỗi văn bản mô tả trạng thái hạm đội."""
+    status_lines = []
+    sorted_ships = sorted(ships, key=lambda s: s.size, reverse=True)
+    for ship in sorted_ships:
+        status = "ĐÃ CHÌM" if ship.is_sunk else "CÒN NỔI"
+        status_lines.append(f"- {ship.name:<11} (Size: {ship.size}): {status}")
+    return "\n".join(status_lines)
+
+class GameLogger:
+    def __init__(self):
+        """Khởi tạo logger, tạo một file log duy nhất dựa trên thời gian."""
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.filename = f"battleship_log_{timestamp}.txt"
+        with open(self.filename, 'w', encoding='utf-8') as f:
+            f.write(f"===== BATTLESHIP LOG - BẮT ĐẦU LÚC: {timestamp} =====\n\n")
+
+    def log_event(self, message):
+        """Ghi một sự kiện chung chung vào file log với dấu thời gian."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        with open(self.filename, 'a', encoding='utf-8') as f:
+            f.write(f"[{timestamp}] {message}\n")
+
+    def log_placements(self, player_name, board):
+        """Ghi lại vị trí đặt tàu ban đầu của một người chơi."""
+        self.log_event(f"Vị trí đặt tàu của {player_name}:")
+        with open(self.filename, 'a', encoding='utf-8') as f:
+            for ship in board.ships:
+                start_pos_str = f"{chr(ord('A') + ship.start_pos[1])}{ship.start_pos[0] + 1}"
+                f.write(f"  - {ship.name:<11} (Size: {ship.size}) tại {start_pos_str}, Hướng: {ship.orientation}\n")
+            f.write("\n")
+
+    def log_shot(self, player_name, coords, result, affected_ship=None):
+        """Ghi lại một phát bắn."""
+        row, col = coords
+        coord_str = f"{chr(ord('A') + col)}{row + 1}"
+        message = f"{player_name} bắn vào {coord_str}. Kết quả: {result}."
+        if result in ["Hit", "Sunk"] and affected_ship:
+            message += f" (Tàu: {affected_ship.name})"
+        self.log_event(message)
+
+    def log_winner(self, winner_name):
+        """Ghi lại người chiến thắng và kết thúc log."""
+        self.log_event("="*40)
+        self.log_event(f"TRÒ CHƠI KẾT THÚC! NGƯỜI CHIẾN THẮNG: {winner_name}")
+        self.log_event("="*40)

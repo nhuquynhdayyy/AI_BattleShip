@@ -1,0 +1,17 @@
+===== BATTLESHIP LOG - BẮT ĐẦU LÚC: 2025-09-11_16-05-50 =====
+
+[16:05:50] Trò chơi bắt đầu. Người chơi đang đặt tàu.
+[16:06:02] Vị trí đặt tàu của Player:
+  - Carrier     (Size: 5) tại C5, Hướng: horizontal
+  - Battleship  (Size: 4) tại F3, Hướng: horizontal
+  - Cruiser     (Size: 3) tại A4, Hướng: horizontal
+  - Submarine   (Size: 3) tại C8, Hướng: horizontal
+  - Destroyer   (Size: 2) tại I9, Hướng: horizontal
+
+[16:06:02] Vị trí đặt tàu của AI:
+  - Carrier     (Size: 5) tại J3, Hướng: vertical
+  - Battleship  (Size: 4) tại G7, Hướng: vertical
+  - Cruiser     (Size: 3) tại H2, Hướng: vertical
+  - Submarine   (Size: 3) tại C6, Hướng: vertical
+  - Destroyer   (Size: 2) tại J9, Hướng: vertical
+

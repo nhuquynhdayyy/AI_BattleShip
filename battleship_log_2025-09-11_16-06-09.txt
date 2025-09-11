@@ -1,0 +1,119 @@
+===== BATTLESHIP LOG - BẮT ĐẦU LÚC: 2025-09-11_16-06-09 =====
+
+[16:06:09] Trò chơi bắt đầu. Người chơi đang đặt tàu.
+[16:06:14] Vị trí đặt tàu của Player:
+  - Carrier     (Size: 5) tại E5, Hướng: horizontal
+  - Battleship  (Size: 4) tại B2, Hướng: horizontal
+  - Cruiser     (Size: 3) tại C7, Hướng: horizontal
+  - Submarine   (Size: 3) tại D9, Hướng: horizontal
+  - Destroyer   (Size: 2) tại I7, Hướng: horizontal
+
+[16:06:14] Vị trí đặt tàu của AI:
+  - Carrier     (Size: 5) tại J1, Hướng: vertical
+  - Battleship  (Size: 4) tại B3, Hướng: horizontal
+  - Cruiser     (Size: 3) tại C1, Hướng: horizontal
+  - Submarine   (Size: 3) tại C6, Hướng: horizontal
+  - Destroyer   (Size: 2) tại D5, Hướng: horizontal
+
+[16:06:15] Player bắn vào E3. Kết quả: Hit. (Tàu: Battleship)
+[16:06:16] Player bắn vào E5. Kết quả: Hit. (Tàu: Destroyer)
+[16:06:17] Player bắn vào E4. Kết quả: Miss.
+[16:06:18] AI bắn vào E10. Kết quả: Miss.
+[16:06:19] Player bắn vào G4. Kết quả: Miss.
+[16:06:20] AI bắn vào C5. Kết quả: Miss.
+[16:06:21] Player bắn vào F3. Kết quả: Miss.
+[16:06:22] AI bắn vào D4. Kết quả: Miss.
+[16:06:22] Player bắn vào D3. Kết quả: Hit. (Tàu: Battleship)
+[16:06:24] Player bắn vào C3. Kết quả: Hit. (Tàu: Battleship)
+[16:06:28] Player bắn vào D5. Kết quả: Sunk. (Tàu: Destroyer)
+[16:06:30] Player bắn vào B3. Kết quả: Sunk. (Tàu: Battleship)
+[16:06:31] Player bắn vào H9. Kết quả: Miss.
+[16:06:32] AI bắn vào E9. Kết quả: Hit. (Tàu: Submarine)
+[16:06:33] AI bắn vào J9. Kết quả: Miss.
+[16:06:34] Player bắn vào D7. Kết quả: Miss.
+[16:06:35] AI bắn vào A6. Kết quả: Miss.
+[16:06:36] Player bắn vào E9. Kết quả: Miss.
+[16:06:37] AI bắn vào F2. Kết quả: Miss.
+[16:06:38] Player bắn vào I5. Kết quả: Miss.
+[16:06:39] AI bắn vào B2. Kết quả: Hit. (Tàu: Battleship)
+[16:06:40] AI bắn vào I3. Kết quả: Miss.
+[16:06:41] Player bắn vào C8. Kết quả: Miss.
+[16:06:42] AI bắn vào G7. Kết quả: Miss.
+[16:06:42] Player bắn vào H7. Kết quả: Miss.
+[16:06:43] AI bắn vào I5. Kết quả: Hit. (Tàu: Carrier)
+[16:06:44] AI bắn vào A5. Kết quả: Miss.
+[16:06:45] Player bắn vào C1. Kết quả: Hit. (Tàu: Cruiser)
+[16:06:45] Player bắn vào C1. Kết quả: Already_Shot.
+[16:06:45] Player bắn vào C1. Kết quả: Already_Shot.
+[16:06:46] Player bắn vào C1. Kết quả: Already_Shot.
+[16:06:46] Player bắn vào F2. Kết quả: Miss.
+[16:06:47] AI bắn vào I10. Kết quả: Miss.
+[16:06:49] Player bắn vào B1. Kết quả: Miss.
+[16:06:50] AI bắn vào D9. Kết quả: Hit. (Tàu: Submarine)
+[16:06:51] AI bắn vào H10. Kết quả: Miss.
+[16:06:51] Player bắn vào C2. Kết quả: Miss.
+[16:06:52] AI bắn vào A2. Kết quả: Miss.
+[16:06:53] Player bắn vào D1. Kết quả: Hit. (Tàu: Cruiser)
+[16:06:55] Player bắn vào E1. Kết quả: Sunk. (Tàu: Cruiser)
+[16:06:56] Player bắn vào J5. Kết quả: Hit. (Tàu: Carrier)
+[16:06:57] Player bắn vào J4. Kết quả: Hit. (Tàu: Carrier)
+[16:06:58] Player bắn vào J6. Kết quả: Miss.
+[16:06:59] AI bắn vào I8. Kết quả: Miss.
+[16:06:59] Player bắn vào J3. Kết quả: Hit. (Tàu: Carrier)
+[16:07:00] Player bắn vào J2. Kết quả: Hit. (Tàu: Carrier)
+[16:07:02] Player bắn vào J1. Kết quả: Sunk. (Tàu: Carrier)
+[16:07:03] Player bắn vào C10. Kết quả: Miss.
+[16:07:04] AI bắn vào F6. Kết quả: Miss.
+[16:07:04] Player bắn vào E7. Kết quả: Miss.
+[16:07:05] AI bắn vào A3. Kết quả: Miss.
+[16:07:06] Player bắn vào H2. Kết quả: Miss.
+[16:07:07] AI bắn vào F5. Kết quả: Hit. (Tàu: Carrier)
+[16:07:08] AI bắn vào C10. Kết quả: Miss.
+[16:07:08] Player bắn vào A7. Kết quả: Miss.
+[16:07:09] AI bắn vào C3. Kết quả: Miss.
+[16:07:10] Player bắn vào J8. Kết quả: Miss.
+[16:07:11] AI bắn vào H5. Kết quả: Hit. (Tàu: Carrier)
+[16:07:12] AI bắn vào I6. Kết quả: Miss.
+[16:07:12] Player bắn vào A5. Kết quả: Miss.
+[16:07:13] AI bắn vào D8. Kết quả: Miss.
+[16:07:14] Player bắn vào A2. Kết quả: Miss.
+[16:07:15] AI bắn vào E3. Kết quả: Miss.
+[16:07:16] Player bắn vào F9. Kết quả: Miss.
+[16:07:17] AI bắn vào J6. Kết quả: Miss.
+[16:07:18] Player bắn vào G7. Kết quả: Miss.
+[16:07:19] AI bắn vào H3. Kết quả: Miss.
+[16:07:20] Player bắn vào H9. Kết quả: Already_Shot.
+[16:07:21] Player bắn vào G10. Kết quả: Miss.
+[16:07:22] AI bắn vào J5. Kết quả: Miss.
+[16:07:23] Player bắn vào G1. Kết quả: Miss.
+[16:07:24] AI bắn vào H1. Kết quả: Miss.
+[16:07:25] Player bắn vào A9. Kết quả: Miss.
+[16:07:26] AI bắn vào B6. Kết quả: Miss.
+[16:07:27] Player bắn vào F6. Kết quả: Miss.
+[16:07:28] AI bắn vào A1. Kết quả: Miss.
+[16:07:28] Player bắn vào H6. Kết quả: Miss.
+[16:07:29] AI bắn vào C6. Kết quả: Miss.
+[16:07:30] Player bắn vào B6. Kết quả: Miss.
+[16:07:31] AI bắn vào A4. Kết quả: Miss.
+[16:07:32] Player bắn vào C4. Kết quả: Miss.
+[16:07:33] AI bắn vào E7. Kết quả: Hit. (Tàu: Cruiser)
+[16:07:34] AI bắn vào D7. Kết quả: Hit. (Tàu: Cruiser)
+[16:07:35] AI bắn vào G1. Kết quả: Miss.
+[16:07:51] Player bắn vào D8. Kết quả: Miss.
+[16:07:52] AI bắn vào H2. Kết quả: Miss.
+[16:07:53] Player bắn vào G3. Kết quả: Miss.
+[16:07:54] AI bắn vào F4. Kết quả: Miss.
+[16:07:54] Player bắn vào I5. Kết quả: Already_Shot.
+[16:08:02] Player bắn vào I8. Kết quả: Miss.
+[16:08:03] AI bắn vào H8. Kết quả: Miss.
+[16:08:04] Player bắn vào I2. Kết quả: Miss.
+[16:08:05] AI bắn vào I1. Kết quả: Miss.
+[16:08:05] Player bắn vào I3. Kết quả: Miss.
+[16:08:06] AI bắn vào H9. Kết quả: Miss.
+[16:08:07] Player bắn vào F6. Kết quả: Already_Shot.
+[16:08:08] Player bắn vào E6. Kết quả: Hit. (Tàu: Submarine)
+[16:08:09] Player bắn vào D6. Kết quả: Hit. (Tàu: Submarine)
+[16:08:10] Player bắn vào C6. Kết quả: Sunk. (Tàu: Submarine)
+[16:08:10] ========================================
+[16:08:10] TRÒ CHƠI KẾT THÚC! NGƯỜI CHIẾN THẮNG: Player
+[16:08:10] ========================================
