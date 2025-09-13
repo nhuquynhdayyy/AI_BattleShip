@@ -54,31 +54,6 @@ class Board:
         self.grid = [[CellState.EMPTY for _ in range(cols)] for _ in range(rows)]
         self.ships = []
 
-    # def _is_valid_placement(self, ship_size, start_row, start_col, orientation):
-    #     """Kiểm tra xem vị trí đặt tàu có hợp lệ không (trong biên, không chồng chéo, không tiếp xúc)."""
-    #     if orientation == "horizontal":
-    #         if not (0 <= start_row < self.rows and 0 <= start_col < self.cols and start_col + ship_size <= self.cols):
-    #             return False
-    #     else: # "vertical"
-    #         if not (0 <= start_row < self.rows and 0 <= start_col < self.cols and start_row + ship_size <= self.rows):
-    #             return False
-
-    #     # Lấy danh sách tọa độ tiềm năng
-    #     potential_coords = []
-    #     for i in range(ship_size):
-    #         r = start_row + (i if orientation == "vertical" else 0)
-    #         c = start_col + (i if orientation == "horizontal" else 0)
-    #         potential_coords.append((r, c))
-
-    #     # Kiểm tra xung quanh các tọa độ tiềm năng
-    #     for r, c in potential_coords:
-    #         for dr in [-1, 0, 1]:
-    #             for dc in [-1, 0, 1]:
-    #                 neighbor_row, neighbor_col = r + dr, c + dc
-    #                 if 0 <= neighbor_row < self.rows and 0 <= neighbor_col < self.cols:
-    #                     if self.grid[neighbor_row][neighbor_col] != CellState.EMPTY:
-    #                         return False
-    #     return True
     def _is_valid_placement(self, ship_size, start_row, start_col, orientation):
         """
         *** PHIÊN BẢN MỚI: CHỈ KIỂM TRA CHỒNG CHÉO, CHO PHÉP TÀU CHẠM NHAU ***
