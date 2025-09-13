@@ -2,7 +2,9 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 from logic_game import GameState, CellState, Ship, Board, FLEET_CONFIG
-from ai_hybrid import HybridAI
+# from ai_hybrid import HybridAI
+from smart_ai import SmartAI
+
 
 N = 10
 
@@ -91,7 +93,8 @@ class BattleshipGUI:
     def start_setup(self):
         """Bắt đầu giai đoạn Player đặt tàu"""
         self.game = GameState()
-        self.ai = HybridAI(board_size=10, ships=[5,4,3,3,2])
+        # self.ai = HybridAI(board_size=10, ships=[5,4,3,3,2])
+        self.ai = SmartAI(rows=10, cols=10, fleet_config=FLEET_CONFIG)
         self.placing_ships = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
         self.current_ship = self.placing_ships.pop(0)
         self.status_label.config(text=f"Đặt tàu: {self.current_ship.name} ({self.current_ship.size} ô)")
@@ -211,17 +214,17 @@ class BattleshipGUI:
         elif result in ["Already_Shot", "Invalid"]:
             self.status_label.config(text="Ô này đã bắn rồi!")
 
-    # def ai_turn(self):
-    #     """AI chọn nước đi"""
-    #     if not self.game or self.game.game_over: return
-    #     result = self.game.ai_shot(self.ai)
-    #     self.update_boards()
-    #     # Lấy chế độ hiện tại của AI
-    #     ai_mode = getattr(self.ai, "mode", "blind").capitalize()
-    #     if result == "Win":
-    #         self.status_label.config(text=f"🤖 AI thắng! (Chiến lược: {ai_mode})")
-    #     else:
-    #         self.status_label.config(text=f"AI ({ai_mode}): {result}")
+    def ai_turn(self):
+        """AI chọn nước đi"""
+        if not self.game or self.game.game_over: return
+        result = self.game.ai_shot(self.ai)
+        self.update_boards()
+        # Lấy chế độ hiện tại của AI
+        ai_mode = getattr(self.ai, "mode", "blind").capitalize()
+        if result == "Win":
+            self.status_label.config(text=f"🤖 AI thắng! (Chiến lược: {ai_mode})")
+        else:
+            self.status_label.config(text=f"AI ({ai_mode}): {result}")
     def ai_turn(self):
         """AI chọn nước đi"""
         if not self.game or self.game.game_over:
