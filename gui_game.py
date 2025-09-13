@@ -211,17 +211,38 @@ class BattleshipGUI:
         elif result in ["Already_Shot", "Invalid"]:
             self.status_label.config(text="Ô này đã bắn rồi!")
 
+    # def ai_turn(self):
+    #     """AI chọn nước đi"""
+    #     if not self.game or self.game.game_over: return
+    #     result = self.game.ai_shot(self.ai)
+    #     self.update_boards()
+    #     # Lấy chế độ hiện tại của AI
+    #     ai_mode = getattr(self.ai, "mode", "blind").capitalize()
+    #     if result == "Win":
+    #         self.status_label.config(text=f"🤖 AI thắng! (Chiến lược: {ai_mode})")
+    #     else:
+    #         self.status_label.config(text=f"AI ({ai_mode}): {result}")
     def ai_turn(self):
         """AI chọn nước đi"""
-        if not self.game or self.game.game_over: return
+        if not self.game or self.game.game_over:
+            return
+
         result = self.game.ai_shot(self.ai)
         self.update_boards()
-        # Lấy chế độ hiện tại của AI
+
         ai_mode = getattr(self.ai, "mode", "blind").capitalize()
-        if result == "Win":
+
+        if self.game.game_over and self.game.winner == "AI":
+            self.status_label.config(text=f"🤖 AI thắng! (Chiến lược: {ai_mode})")
+        elif result == "Win":
             self.status_label.config(text=f"🤖 AI thắng! (Chiến lược: {ai_mode})")
         else:
             self.status_label.config(text=f"AI ({ai_mode}): {result}")
+
+            # 👉 Nếu AI bắn trúng thì tiếp tục bắn sau 1s
+            if result in ["Hit", "Sunk"]:
+                self.root.after(1000, self.ai_turn)
+
 
 if __name__ == "__main__":
     root = tk.Tk()

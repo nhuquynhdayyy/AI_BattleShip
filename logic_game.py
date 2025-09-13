@@ -202,27 +202,93 @@ class GameState:
                 orientation = random.choice(["horizontal","vertical"])
                 placed = self.ai_board.place_ship(ship, r,c,orientation)
 
+    # def player_shot(self, row, col):
+    #     if self.game_over or self.current_turn != "Player":
+    #         return "Not_Player_Turn"
+
+    #     result, ship = self.ai_board.receive_shot(row, col)
+    #     if result in ["Hit","Sunk"]:
+    #         self.player_tracking_board.grid[row][col] = CellState.HIT
+    #         if result == "Sunk":
+    #             for r, c in ship.coordinates:
+    #                 self.player_tracking_board.grid[r][c] = CellState.SUNK_SHIP
+    #         if all(s.is_sunk for s in self.ai_board.ships):
+    #             self.game_over = True
+    #             self.winner = "Player"
+    #             return "Win"
+    #     elif result == "Miss":
+    #         self.player_tracking_board.grid[row][col] = CellState.MISS
+    #     elif result in ["Already_Shot","Invalid"]:
+    #         return result
+
+    #     self.current_turn = "AI"
+    #     return result
+
+    # def ai_shot(self, ai_module):
+    #     if self.game_over or self.current_turn != "AI":
+    #         return "Not_AI_Turn"
+
+    #     while True:
+    #         r, c = ai_module.choose_move()
+    #         result, ship = self.player_board.receive_shot(r, c)
+
+    #         sunk_len = ship.size if (result == "Sunk" and ship) else None
+    #         if hasattr(ai_module, "feedback"):
+    #             ai_module.feedback((r, c), result, sunk_ship_len=sunk_len)
+
+    #         if result in ["Already_Shot", "Invalid"]:
+    #             continue  # chọn lại nếu nước đi không hợp lệ
+    #         break
+
+    #     # --- Cập nhật tracking board ---
+    #     if result in ["Hit", "Sunk"]:
+    #         self.ai_tracking_board.grid[r][c] = CellState.HIT
+    #         if result == "Sunk":
+    #             for r2, c2 in ship.coordinates:
+    #                 self.ai_tracking_board.grid[r2][c2] = CellState.SUNK_SHIP
+
+    #         # ✅ Check toàn bộ tàu của Player
+    #         if all(s.is_sunk for s in self.player_board.ships):
+    #             self.game_over = True
+    #             self.winner = "AI"
+    #             return "Win"
+
+    #     elif result == "Miss":
+    #         self.ai_tracking_board.grid[r][c] = CellState.MISS
+
+    #     # 👉 Đổi lượt nếu game chưa kết thúc
+    #     if not self.game_over:
+    #         self.current_turn = "Player"
+
+    #     return result
+
     def player_shot(self, row, col):
         if self.game_over or self.current_turn != "Player":
             return "Not_Player_Turn"
 
         result, ship = self.ai_board.receive_shot(row, col)
-        if result in ["Hit","Sunk"]:
+
+        if result in ["Hit", "Sunk"]:
             self.player_tracking_board.grid[row][col] = CellState.HIT
-            if result == "Sunk":
+            if result == "Sunk" and ship:
                 for r, c in ship.coordinates:
                     self.player_tracking_board.grid[r][c] = CellState.SUNK_SHIP
+
+            # Kiểm tra thắng
             if all(s.is_sunk for s in self.ai_board.ships):
                 self.game_over = True
                 self.winner = "Player"
                 return "Win"
+
+            return result   # 🔥 Player bắn trúng → giữ lượt, không đổi
+
         elif result == "Miss":
             self.player_tracking_board.grid[row][col] = CellState.MISS
-        elif result in ["Already_Shot","Invalid"]:
+            self.current_turn = "AI"  # 👉 chỉ đổi lượt khi trượt
             return result
 
-        self.current_turn = "AI"
-        return result
+        elif result in ["Already_Shot", "Invalid"]:
+            return result
 
     def ai_shot(self, ai_module):
         if self.game_over or self.current_turn != "AI":
@@ -240,30 +306,21 @@ class GameState:
                 continue  # chọn lại nếu nước đi không hợp lệ
             break
 
-        # --- Cập nhật tracking board ---
         if result in ["Hit", "Sunk"]:
             self.ai_tracking_board.grid[r][c] = CellState.HIT
-            if result == "Sunk":
+            if result == "Sunk" and ship:
                 for r2, c2 in ship.coordinates:
                     self.ai_tracking_board.grid[r2][c2] = CellState.SUNK_SHIP
 
-            # ✅ Check toàn bộ tàu của Player
+            # Kiểm tra thắng
             if all(s.is_sunk for s in self.player_board.ships):
                 self.game_over = True
                 self.winner = "AI"
                 return "Win"
 
+            return result   # 🔥 AI bắn trúng → giữ lượt
+
         elif result == "Miss":
             self.ai_tracking_board.grid[r][c] = CellState.MISS
-
-        # 👉 Đổi lượt nếu game chưa kết thúc
-        if not self.game_over:
-            self.current_turn = "Player"
-
-        return result
-    
-
-
-
-
-
+            self.current_turn = "Player"  # 👉 đổi lượt khi trượt
+            return result
