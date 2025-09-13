@@ -2,8 +2,7 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 from logic_game import GameState, CellState, Ship, Board, FLEET_CONFIG
-# from ai_hybrid import HybridAI
-from smart_ai import SmartAI
+from ai_hybrid import HybridAI
 
 
 N = 10
@@ -93,8 +92,7 @@ class BattleshipGUI:
     def start_setup(self):
         """Bắt đầu giai đoạn Player đặt tàu"""
         self.game = GameState()
-        # self.ai = HybridAI(board_size=10, ships=[5,4,3,3,2])
-        self.ai = SmartAI(rows=10, cols=10, fleet_config=FLEET_CONFIG)
+        self.ai = HybridAI(board_size=10, ships=[5,4,3,3,2])
         self.placing_ships = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
         self.current_ship = self.placing_ships.pop(0)
         self.status_label.config(text=f"Đặt tàu: {self.current_ship.name} ({self.current_ship.size} ô)")
