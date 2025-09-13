@@ -235,7 +235,12 @@ class GameState:
             return "Not_AI_Turn"
 
         while True:
-            r, c = ai_module.choose_move()
+            # r, c = ai_module.choose_move()
+            # result, ship = self.player_board.receive_shot(r, c)
+            r, c = ai_module.choose_move(
+                self.ai_tracking_board,              # bảng AI theo dõi người chơi
+                self.player_board.get_remaining_ships()  # danh sách tàu còn lại của Player
+            )
             result, ship = self.player_board.receive_shot(r, c)
 
             sunk_len = ship.size if (result == "Sunk" and ship) else None
