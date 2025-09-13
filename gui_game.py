@@ -230,8 +230,9 @@ class BattleshipGUI:
 
         result = self.game.ai_shot(self.ai)
         self.update_boards()
-
+        
         ai_mode = getattr(self.ai, "mode", "blind").capitalize()
+        self.ai_strategy_label.config(text=f"AI Strategy: {ai_mode}")
 
         if self.game.game_over and self.game.winner == "AI":
             self.status_label.config(text=f"🤖 AI thắng! (Chiến lược: {ai_mode})")
