@@ -6,61 +6,104 @@ from ai_hybrid import HybridAI
 
 N = 10
 
+# COLORS = {
+#     CellState.EMPTY: "lightgray",
+#     CellState.SHIP: "gray",        # Player ship
+#     CellState.HIT: "red",
+#     CellState.MISS: "blue",
+#     CellState.SUNK_SHIP: "black"
+# }
+# Dark theme + màu
 COLORS = {
-    CellState.EMPTY: "lightgray",
-    CellState.SHIP: "gray",        # Player ship
-    CellState.HIT: "red",
-    CellState.MISS: "blue",
-    CellState.SUNK_SHIP: "black"
+    CellState.EMPTY: "#1f2937",     # nền tối
+    CellState.SHIP: "#1f2937",      # tàu Player: nền như trống, hiển thị ●
+    CellState.HIT:  "#ef4444",      # đỏ khi bắn trúng
+    CellState.MISS: "#3b82f6",      # xanh dương khi bắn trượt
+    CellState.SUNK_SHIP: "#000000" # tím khi tàu chìm hẳn
 }
 
 class BattleshipGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Battleship Player vs AI (Blind Search)")
+        # self.root.title("Battleship Player vs AI (Blind Search)")
+        self.root.title("⚓ Battleship Player vs AI")
 
         self.game = None
         self.ai = None
         self.placing_ships = []     # danh sách tàu Player cần đặt
         self.current_ship = None    # tàu đang đặt
 
+        root.configure(bg="#111827")  # dark background
+
         # Frames
-        main_frame = tk.Frame(root)
+        # main_frame = tk.Frame(root)
+        main_frame = tk.Frame(root, bg="#111827")
         main_frame.pack(pady=10)
 
         # Player board
-        player_frame = tk.LabelFrame(main_frame, text="Player Board (Click để đặt tàu)")
+        # player_frame = tk.LabelFrame(main_frame, text="Player Board (Click để đặt tàu)")
+        player_frame = tk.LabelFrame(main_frame, text="🧑 Tàu của bạn",
+                                     font=("Arial", 10, "bold"), fg="white",
+                                     bg="#1f2937", padx=5, pady=5)
         player_frame.grid(row=0, column=0, padx=20)
         self.player_buttons = self._create_board(player_frame, player_board=True)
 
         # AI board
-        ai_frame = tk.LabelFrame(main_frame, text="AI Board (Click để bắn)")
+        # ai_frame = tk.LabelFrame(main_frame, text="AI Board (Click để bắn)")
+        ai_frame = tk.LabelFrame(main_frame, text="🤖 Tàu đối thủ",
+                                 font=("Arial", 10, "bold"), fg="white",
+                                 bg="#1f2937", padx=5, pady=5)
         ai_frame.grid(row=0, column=1, padx=20)
         self.ai_buttons = self._create_board(ai_frame, ai_board=True)
 
         # Control buttons
-        control_frame = tk.Frame(root)
+        # control_frame = tk.Frame(root)
+        control_frame = tk.Frame(root, bg="#111827")
         control_frame.pack(pady=10)
 
-        tk.Button(control_frame, text="Start", width=10, command=self.start_setup).grid(row=0, column=0, padx=5)
-        tk.Button(control_frame, text="Reset", width=10, command=self.reset_game).grid(row=0, column=1, padx=5)
-        tk.Button(control_frame, text="Quit",  width=10, command=root.quit).grid(row=0, column=2, padx=5)
-
-        self.status_label = tk.Label(root, text="Welcome to Battleship!", font=("Arial", 12))
+        # tk.Button(control_frame, text="Start", width=10, command=self.start_setup).grid(row=0, column=0, padx=5)
+        # tk.Button(control_frame, text="Reset", width=10, command=self.reset_game).grid(row=0, column=1, padx=5)
+        # tk.Button(control_frame, text="Quit",  width=10, command=root.quit).grid(row=0, column=2, padx=5)
+        for i, (txt, cmd, color) in enumerate([
+            ("▶️ Start", self.start_setup, "#10b981"),
+            ("🔄 Reset", self.reset_game, "#f59e0b"),
+            ("❌ Quit", root.quit, "#ef4444")
+        ]):
+            tk.Button(control_frame, text=txt, width=10, command=cmd,
+                      bg=color, fg="white", font=("Arial", 10, "bold"),
+                      relief="flat", padx=5, pady=5).grid(row=0, column=i, padx=5)
+            
+        # self.status_label = tk.Label(root, text="Welcome to Battleship!", font=("Arial", 12))
+        # self.status_label.pack(pady=5)
+        # Status + AI Strategy
+        self.status_label = tk.Label(root, text="Welcome to Battleship!",
+                                     font=("Arial", 12, "bold"), bg="#1e3a8a", fg="white", width=40)
         self.status_label.pack(pady=5)
+
+        self.ai_strategy_label = tk.Label(root, text="AI Strategy: None",
+                                          font=("Arial", 10), fg="cyan", bg="#111827")
+        self.ai_strategy_label.pack(pady=2)
 
     def _create_board(self, parent, player_board=False, ai_board=False):
         buttons = []
         for r in range(N):
             row_buttons = []
             for c in range(N):
-                btn = tk.Button(parent, text=" ", width=2, height=1,
-                                bg=COLORS[CellState.EMPTY], relief="raised")
-                btn.grid(row=r, column=c, padx=1, pady=1)
+                # btn = tk.Button(parent, text=" ", width=2, height=1,
+                #                 bg=COLORS[CellState.EMPTY], relief="raised")
+                # btn.grid(row=r, column=c, padx=1, pady=1)
+                btn = tk.Button(
+                    parent, text=" ", width=2, height=1,
+                    bg=COLORS[CellState.EMPTY], fg="white",
+                    font=("Arial", 10, "bold"), activebackground="#fde047",
+                    relief="solid", bd=1, highlightthickness=1,
+                    highlightbackground="#374151"   # viền mặc định xám
+                )
                 if player_board:
                     btn.config(command=lambda r=r, c=c: self.place_ship_click(r, c))
                 if ai_board:
                     btn.config(command=lambda r=r, c=c: self.player_shoot(r, c))
+                btn.grid(row=r, column=c, padx=0, pady=0)
                 row_buttons.append(btn)
             buttons.append(row_buttons)
         return buttons
@@ -68,7 +111,6 @@ class BattleshipGUI:
     def start_setup(self):
         """Bắt đầu giai đoạn Player đặt tàu"""
         self.game = GameState()
-        # self.ai = BlindAI(board_size=10)
         self.ai = HybridAI(board_size=10, ships=[5,4,3,3,2])
         self.placing_ships = [Ship(f["name"], f["size"]) for f in FLEET_CONFIG]
         self.current_ship = self.placing_ships.pop(0)
@@ -121,8 +163,10 @@ class BattleshipGUI:
         for board in [self.player_buttons, self.ai_buttons]:
             for row in board:
                 for btn in row:
-                    btn.config(bg=COLORS[CellState.EMPTY], text=" ")
+                    # btn.config(bg=COLORS[CellState.EMPTY], text=" ")
+                    btn.config(bg=COLORS[CellState.EMPTY], text=" ", highlightbackground="#374151")
         self.status_label.config(text="Game reset. Click Start để đặt tàu mới.")
+        self.ai_strategy_label.config(text="AI Strategy: None")
 
     def update_boards(self):
         """Cập nhật GUI theo trạng thái Board"""
@@ -132,17 +176,48 @@ class BattleshipGUI:
         for r in range(N):
             for c in range(N):
                 cell = self.game.player_board.grid[r][c]
-                color = COLORS[cell]
+                # color = COLORS[cell]
+                # if cell == CellState.SHIP:
+                #     color = "gray"
+                # self.player_buttons[r][c].config(bg=color)
+                bg, text, border = COLORS[CellState.EMPTY], " ", "#374151"
                 if cell == CellState.SHIP:
-                    color = "gray"
-                self.player_buttons[r][c].config(bg=color)
+                    bg = COLORS[CellState.SHIP]
+                    text = "●"  # chấm trắng
+                elif cell == CellState.MISS:
+                    bg = COLORS[CellState.MISS]
+                elif cell == CellState.HIT:
+                    bg = COLORS[CellState.HIT]
+                    text = "💀"
+                elif cell == CellState.SUNK_SHIP:
+                    bg = COLORS[CellState.SUNK_SHIP]
+                    text = "💀"
+                    border = "#ffffff"   # viền trắng cho tàu chìm
+
+                self.player_buttons[r][c].config(
+                    bg=bg, text=text, fg="white", highlightbackground=border
+                )
 
         # AI tracking board
         for r in range(N):
             for c in range(N):
                 cell = self.game.player_tracking_board.grid[r][c]
-                color = COLORS[cell]
-                self.ai_buttons[r][c].config(bg=color)
+                # color = COLORS[cell]
+                # self.ai_buttons[r][c].config(bg=color)
+                bg, text, border = COLORS[CellState.EMPTY], " ", "#374151"
+                if cell == CellState.MISS:
+                    bg = COLORS[CellState.MISS]
+                elif cell == CellState.HIT:
+                    bg = COLORS[CellState.HIT]
+                    text = "💀"
+                elif cell == CellState.SUNK_SHIP:
+                    bg = COLORS[CellState.SUNK_SHIP]
+                    text = "💀"
+                    border = "#ffffff"
+
+                self.ai_buttons[r][c].config(
+                    bg=bg, text=text, fg="white", highlightbackground=border
+                )
 
     def player_shoot(self, r, c):
         """Player click vào AI board"""
