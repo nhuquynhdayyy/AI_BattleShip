@@ -1,24 +1,22 @@
-# ai_blind.py
+# FILE: ai_blind.py (Cấp độ Dễ)
+
 import random
 
 class BlindAI:
     def __init__(self, board_size=10):
-        self.board_size = board_size
-        self.shots_taken = set()
+        self.possible_shots = [(r, c) for r in range(board_size) for c in range(board_size)]
+        random.shuffle(self.possible_shots)
 
-    def choose_move(self):
-        remaining = [
-            (r,c) for r in range(self.board_size)
-                  for c in range(self.board_size)
-                  if (r,c) not in self.shots_taken
-        ]
-        if not remaining:
-            return -1, -1  # hết ô
-        move = random.choice(remaining)
-        self.shots_taken.add(move)
-        return move
+    def get_move(self, tracking_board, remaining_ships):
+        """
+        Lấy nước đi ngẫu nhiên. Hàm này bỏ qua tracking_board và remaining_ships.
+        """
+        if self.possible_shots:
+            return self.possible_shots.pop(0)
+        return None
 
-if __name__ == "__main__":
-    ai = BlindAI()
-    for t in range(10):
-        print(f"Turn {t+1}: AI shoots at {ai.choose_move()}")
+    def report_result(self, move, result):
+        """
+        AI Mù không học hỏi từ kết quả, nên hàm này không làm gì cả.
+        """
+        pass

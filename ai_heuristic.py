@@ -1,80 +1,45 @@
-# FILE: ai_heuristic.py
-# Heuristic AI cho Battleship: Probability Grid + Target Mode
+# FILE: ai_heuristic.py (Cấp độ Trung Bình)
 
 import random
-from logic_game import CellState
 
 class HeuristicAI:
-    def __init__(self, board_size=10, ships=[5,4,3,3,2]):
+    def __init__(self, board_size=10):
         self.board_size = board_size
-        self.remaining_ships = ships[:]
-        self.hits = []       # các ô đã trúng nhưng chưa chìm tàu
-        self.shots_taken = set()
+        self.possible_shots = [(r, c) for r in range(board_size) for c in range(board_size)]
+        random.shuffle(self.possible_shots)
+        
+        self.mode = 'hunt'
+        self.target_queue = []
 
-    # -------------------------------
-    # Heatmap dựa trên tàu còn lại
-    # -------------------------------
-    def compute_probability_grid(self, tracking_board, remaining_ships):
-        rows, cols = tracking_board.rows, tracking_board.cols
-        scores = [[0]*cols for _ in range(rows)]
-        ship_lengths = [s.size for s in remaining_ships if not s.is_sunk]
+    def get_move(self, tracking_board, remaining_ships):
+        # Ưu tiên chế độ diệt
+        while self.target_queue:
+            move = self.target_queue.pop(0)
+            if move in self.possible_shots:
+                self.possible_shots.remove(move)
+                return move
+        
+        # Nếu hết mục tiêu, quay lại chế độ săn
+        self.mode = 'hunt'
+        
+        # Săn ngẫu nhiên (phiên bản đơn giản)
+        if self.possible_shots:
+            move = self.possible_shots.pop(0)
+            return move
+        return None
 
-        for length in ship_lengths:
-            # duyệt tất cả vị trí khả thi
-            for r in range(rows):
-                for c in range(cols):
-                    # check ngang
-                    if c + length <= cols:
-                        segment = [tracking_board.grid[r][c+i] for i in range(length)]
-                        if all(cell in [CellState.EMPTY] for cell in segment):
-                            for i in range(length):
-                                scores[r][c+i] += 1
-
-                    # check dọc
-                    if r + length <= rows:
-                        segment = [tracking_board.grid[r+i][c] for i in range(length)]
-                        if all(cell in [CellState.EMPTY] for cell in segment):
-                            for i in range(length):
-                                scores[r+i][c] += 1
-        return scores
-
-    # -------------------------------
-    # Chọn ô tiếp theo
-    # -------------------------------
-    def choose_move(self, tracking_board, remaining_ships):
-        # Nếu đang có hits → Target Mode
-        if self.hits:
-            r, c = self.hits[-1]
-            neighbors = [(r-1,c),(r+1,c),(r,c-1),(r,c+1)]
-            neighbors = [(r,c) for r,c in neighbors
-                         if 0 <= r < self.board_size and 0 <= c < self.board_size
-                         and (r,c) not in self.shots_taken]
-            if neighbors:
-                return random.choice(neighbors)
-
-        # Nếu không có hit → Hunt Mode
-        scores = self.compute_probability_grid(tracking_board, remaining_ships)
-        max_score = max(max(row) for row in scores)
-        candidates = [(r,c) for r in range(self.board_size) for c in range(self.board_size)
-                      if scores[r][c] == max_score and (r,c) not in self.shots_taken]
-
-        return random.choice(candidates) if candidates else None
-
-    # -------------------------------
-    # Nhận phản hồi từ game
-    # -------------------------------
-    def feedback(self, move, result, sunk_ship_len=None):
-        r, c = move
-        self.shots_taken.add(move)
-
-        if result.lower() == "hit":
-            self.hits.append(move)
-
-        elif result.lower() == "sunk":
-            if sunk_ship_len and sunk_ship_len in self.remaining_ships:
-                self.remaining_ships.remove(sunk_ship_len)
-            # reset hits vì tàu đó đã chìm
-            self.hits = [h for h in self.hits if h != move]
-
-        elif result.lower() == "miss":
-            pass  # không cần lưu gì thêm
+    def report_result(self, move, result):
+        if result == "Hit":
+            self.mode = 'target'
+            r, c = move
+            # Thêm các ô xung quanh vào hàng đợi mục tiêu
+            potential_targets = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+            for target in potential_targets:
+                if 0 <= target[0] < self.board_size and 0 <= target[1] < self.board_size:
+                    if target not in self.target_queue:
+                        self.target_queue.append(target)
+        
+        elif result == "Sunk":
+            # Khi tàu chìm, xóa sạch hàng đợi và quay lại săn
+            self.target_queue = []
+            self.mode = 'hunt'
