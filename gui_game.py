@@ -1,11 +1,7 @@
-# FILE: gui_game.py
-# PHIÊN BẢN HOÀN CHỈNH - TÍCH HỢP ÂM THANH
-
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 from PIL import Image, ImageTk
 
-# *** THÊM IMPORT PYGAME ***
 import pygame
 
 from logic_game import GameState, CellState, Ship, Board, FLEET_CONFIG
@@ -67,7 +63,6 @@ class BattleshipGUI:
             self.sounds[name].play()
         
     def show_difficulty_selection(self):
-        # ... (Hàm này giữ nguyên như cũ, chỉ thêm âm thanh cho nút)
         self.difficulty_window = tk.Toplevel(self.root)
         self.difficulty_window.title("Chọn Độ Khó")
         self.difficulty_window.geometry("800x600")
@@ -112,7 +107,6 @@ class BattleshipGUI:
     # --- Các hàm logic khác được thêm âm thanh ---
     def on_board_click(self, r, c):
         self.play_sound('click') # Âm thanh khi click lên bản đồ
-        # ... (phần code còn lại của hàm giữ nguyên)
         if not self.game or self.game.ai_board is not None: return
         if self.selected_ship:
             if self.game.player_board.place_ship(self.selected_ship, r, c, self.placement_orientation):
@@ -136,7 +130,6 @@ class BattleshipGUI:
 
     def select_ship(self, ship):
         self.play_sound('click') # Âm thanh khi chọn tàu
-        # ... (phần code còn lại của hàm giữ nguyên)
         if self.selected_ship and self.selected_ship.name in self.shipyard_widgets:
              self.shipyard_widgets[self.selected_ship.name].config(relief="flat", bg="#374151")
         self.selected_ship = ship
@@ -195,7 +188,6 @@ class BattleshipGUI:
         elif result == "AI_Error":
              self.status_label.config(text=f"AI lỗi, chuyển lượt.")
 
-    # ... (Các hàm còn lại không cần sửa)
     def setup_main_window(self):
         for widget in self.root.winfo_children(): widget.destroy()
         main_frame = tk.Frame(self.root, bg="#0c4a6e"); main_frame.pack(pady=10, padx=20, fill="x", expand=True)
