@@ -1,6 +1,3 @@
-# FILE: ai_hybrid.py
-# PHIÊN BẢN IQ 100 - TẬP TRUNG VÀO LOGIC "SĂN & DIỆT"
-
 import random
 from logic_game import CellState
 

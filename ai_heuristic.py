@@ -1,5 +1,3 @@
-# FILE: ai_heuristic.py (Cấp độ Trung Bình)
-
 import random
 
 class HeuristicAI:
