@@ -1,3 +1,5 @@
+# FILE: ai_blind.py (Cấp độ Dễ)
+
 import random
 
 class BlindAI:

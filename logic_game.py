@@ -1,3 +1,6 @@
+# FILE: logic_game.py
+# PHIÊN BẢN HOÀN THIỆN - TẬP TRUNG LOGIC CHUYỂN LƯỢT
+
 import random
 
 class CellState:
