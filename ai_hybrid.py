@@ -1,10 +1,23 @@
 # FILE: ai_hybrid.py
-# IQ 200+: Chiến thuật kết hợp Hunt (xác suất + parity + bonus gần HIT) và Target (suy luận hướng + mở rộng hai đầu)
-# Phiên bản này được thiết kế để rất khó đánh bại.
+# IQ 200+++: Chiến thuật kết hợp Hunt (xác suất + parity + bonus gần HIT) và Target (suy luận hướng + mở rộng hai đầu)
+# Phiên bản này được thiết kế để CỰC KỲ KHÓ ĐÁNH BẠI, ưu tiên hoàn thành tàu đang tấn công.
+# Cải tiến: Quản lý "cụm HIT" và Tối ưu hóa Target Mode dựa trên remaining_ships để tránh lãng phí nước đi.
 
 import random
 from collections import deque, defaultdict
 from logic_game import CellState
+
+# Cấu trúc để lưu trữ thông tin về một cụm HIT (một con tàu đang bị tấn công)
+class ActiveTarget:
+    def __init__(self, initial_hit):
+        self.hits_in_cluster = [initial_hit] # Các ô đã trúng của cụm này
+        self.orientation = None                # Hướng suy luận ('h', 'v', hoặc None)
+        self.target_queue = deque()            # Hàng đợi các ô cần bắn để hoàn thành tàu này
+        self.min_possible_length = 1           # Độ dài tối thiểu có thể của tàu này (khởi tạo 1)
+        self.max_possible_length = 5           # Độ dài tối đa có thể của tàu này (khởi tạo 5 - Carrier)
+
+    def __repr__(self):
+        return f"Target(Hits={self.hits_in_cluster}, Ori={self.orientation}, QSize={len(self.target_queue)}, LenRange=[{self.min_possible_length}-{self.max_possible_length}])"
 
 class HybridAI:
     def __init__(self, board_size=10, ships_config=None, seed=None):
@@ -12,310 +25,344 @@ class HybridAI:
         if seed is not None:
             random.seed(seed)
 
-        # Tập hợp các ô chưa bắn (để truy cập nhanh O(1))
         self.possible_shots = {(r, c) for r in range(board_size) for c in range(board_size)}
-        
-        # Bảng xếp hạng tie-break để đảm bảo hành vi nhất quán/có thể tái tạo khi nhiều ô có cùng điểm số
         self._tie_break = [(r, c) for r in range(board_size) for c in range(board_size)]
-        random.shuffle(self._tie_break) # Xáo trộn một lần khi khởi tạo
-        self._tie_rank = {pos: i for i, pos in enumerate(self._tie_break)} # Rank của mỗi vị trí
+        random.shuffle(self._tie_break) 
+        self._tie_rank = {pos: i for i, pos in enumerate(self._tie_break)} 
 
-        # Trạng thái AI
-        self.mode = 'hunt'              # Chế độ hiện tại: 'hunt' hoặc 'target'
-        self.target_queue = deque()     # Hàng đợi các ô cần bắn khi ở chế độ 'target'
-        self.hits = []                  # Danh sách các ô đã trúng của con tàu hiện đang bị tấn công
-        self.last_oriented = None       # Hướng được suy luận của tàu đang bị tấn công ('h' hoặc 'v')
+        self.mode = 'hunt'              
+        self.active_targets = []        # Danh sách các đối tượng ActiveTarget
+        self.last_shot_move = None      
 
     # --------- API chính cho GameState ----------
     def get_move(self, tracking_board, remaining_ships):
         """
-        Chọn nước đi tiếp theo. Ưu tiên chế độ target, sau đó là hunt.
+        Chọn nước đi tiếp theo. Ưu tiên chế độ target (hoàn thành các tàu đang tấn công), sau đó là hunt.
         """
-        # 1. Luôn thử chế độ TARGET trước nếu có mục tiêu hợp lệ
-        self._prune_target_queue(tracking_board) # Loại bỏ các mục tiêu đã bị bắn/không hợp lệ
-        while self.target_queue:
-            m = self.target_queue.popleft()
-            if m in self.possible_shots: # Đảm bảo chưa bắn ô này
-                self.possible_shots.remove(m)
-                return m
+        # 1. Ưu tiên hoàn thành các tàu đang bị tấn công (Active Targets)
+        self._sort_active_targets() 
 
-        # 2. Nếu không có mục tiêu hợp lệ trong hàng đợi nhưng vẫn còn 'hits',
-        # nghĩa là hàng đợi đã bị cạn hoặc mục tiêu cũ không còn hợp lệ.
-        # Cần tái tạo lại hàng đợi target hoặc chuyển về hunt.
-        if self.hits and not self.target_queue:
-            self.mode = 'target' # Vẫn ưu tiên target, thử tái tạo queue
-            self._reseed_target_queue(tracking_board)
-            self._prune_target_queue(tracking_board) # Prune lại sau khi reseed
-            while self.target_queue:
-                m = self.target_queue.popleft()
+        for target in list(self.active_targets): # Iterate over a copy because list might change
+            # Luôn cập nhật thông tin cụm trước khi lấy nước đi, bao gồm cả remaining_ships
+            self._refine_target_info(target, tracking_board, remaining_ships) 
+            self._prune_target_queue_for_cluster(target, tracking_board) 
+
+            while target.target_queue:
+                m = target.target_queue.popleft()
                 if m in self.possible_shots:
                     self.possible_shots.remove(m)
+                    self.last_shot_move = m
+                    self.mode = 'target' 
                     return m
             
-            # Nếu sau khi reseed mà hàng đợi vẫn rỗng (ví dụ: tất cả các ô xung quanh đều đã bị bắn)
-            # thì reset trạng thái target và quay về hunt.
-            self.mode = 'hunt'
-            self.hits.clear()
-            self.last_oriented = None
-
-        # 3. Chế độ HUNT: Tính toán bản đồ xác suất và chọn ô tốt nhất
-        self.mode = 'hunt' # Chắc chắn đang ở hunt mode
+        # 2. Chế độ HUNT: Nếu không có ActiveTarget nào cung cấp nước đi hợp lệ
+        self.mode = 'hunt'
         scores = self._compute_probability_grid(tracking_board, remaining_ships)
         
-        best_move, best_score, best_rank = None, -1.0, (float('inf'), float('inf')) # Rank: (parity_penalty, tie_break_rank)
+        best_move, best_score, best_rank = None, -1.0, (float('inf'), float('inf')) 
         
-        # Xác định parity tốt nhất để săn (dựa trên độ dài tàu còn lại)
         best_parity = self._get_best_parity_for_hunt(remaining_ships)
         
-        # Tính toán bonus cho các ô gần với điểm HIT chưa chìm (nếu có)
-        near_hit_bonus = self._get_near_hit_bonus_map(tracking_board)
-
-        # Duyệt qua các ô chưa bắn để tìm nước đi tốt nhất
-        for r, c in list(self.possible_shots): # Dùng list() để có thể remove trong vòng lặp nếu cần, nhưng ở đây không cần
+        for r, c in list(self.possible_shots):
             sc = scores[r][c]
-            if sc <= 0: continue # Bỏ qua các ô không có khả năng chứa tàu
+            if sc <= 0: continue 
             
-            # Áp dụng bonus gần HIT
-            sc += near_hit_bonus[(r, c)]
-            
-            # Áp dụng parity bias: ưu tiên ô cùng parity, hạ điểm nhẹ ô khác parity
+            # Loại trừ các ô đã thuộc active_targets khỏi việc tính toán scores của hunt mode
+            is_part_of_active_target = False
+            for target in self.active_targets:
+                if (r,c) in target.hits_in_cluster:
+                    is_part_of_active_target = True
+                    break
+            if is_part_of_active_target:
+                continue 
+
             parity_penalty = 0 
-            if ((r + c) % 2) != best_parity:
-                sc *= 0.9 # Giảm điểm 10% nếu không đúng parity
-                parity_penalty = 1 # Để dùng trong tie-breaking
+            if ((r + c) % 2) != best_parity and best_parity != -1: 
+                sc *= 0.9 
+                parity_penalty = 1 
             
-            # Tie-breaking: ưu tiên điểm cao hơn, sau đó là parity, sau đó là rank ngẫu nhiên
             current_rank = (parity_penalty, self._tie_rank[(r, c)])
             
             if sc > best_score or (sc == best_score and current_rank < best_rank):
                 best_move, best_score, best_rank = (r, c), sc, current_rank
 
-        # Fallback nếu không tìm thấy nước đi nào có điểm (rất hiếm nếu possible_shots không rỗng)
         if best_move is None:
             if not self.possible_shots:
-                return None # Không còn ô nào để bắn
-            # Lấy ô đầu tiên trong danh sách đã xáo trộn làm fallback
-            best_move = self.possible_shots.pop() 
+                return None 
+            move = random.choice(list(self.possible_shots))
+            self.possible_shots.remove(move)
+            self.last_shot_move = move
+            return move
         else:
             self.possible_shots.remove(best_move)
-            
-        return best_move
+            self.last_shot_move = best_move
+            return best_move
 
-    def report_result(self, move, result):
+    def report_result(self, move, result, sunk_ship_obj=None):
         """
         AI nhận phản hồi từ game để cập nhật trạng thái và chiến thuật.
+        Bây giờ có thể nhận sunk_ship_obj để biết tàu nào đã chìm.
         """
-        # Chuẩn hóa kết quả
         if isinstance(result, str): res_str = result.strip().lower()
         elif isinstance(result, bool): res_str = 'hit' if result else 'miss'
         else: res_str = str(result).strip().lower()
 
         if res_str == 'hit':
             self.mode = 'target'
-            self.hits.append(move)
-            # Sau khi có thêm hit, cố gắng suy luận hướng và mở rộng hàng đợi
-            self._refine_orientation() # Cập nhật hướng nếu có thể
-            self._grow_target_queue_from_hits() # Mở rộng hàng đợi dựa trên các hits
+            self._update_active_targets_with_hit(move)
+            
         elif res_str == 'sunk':
-            # Tàu chìm, reset trạng thái target và quay về hunt
             self.mode = 'hunt'
-            self.target_queue.clear()
-            self.hits.clear()
-            self.last_oriented = None
+            self._cleanup_active_targets_after_sunk(sunk_ship_obj)
+
         else:  # miss / already_shot / invalid
-            # Nếu bắn trượt trong chế độ target, hàng đợi sẽ tự động bị prune ở lượt tiếp theo.
             pass
 
-    # --------- Logic chế độ TARGET (diệt tàu) ----------
+    # --------- Logic quản lý ActiveTargets ----------
     def _neighbors4(self, r, c):
-        """Trả về các ô láng giềng 4 chiều."""
         yield r-1, c; yield r+1, c; yield r, c-1; yield r, c+1
 
     def _in_bounds(self, r, c):
-        """Kiểm tra ô có nằm trong giới hạn bản đồ không."""
         return 0 <= r < self.board_size and 0 <= c < self.board_size
 
-    def _prune_target_queue(self, tracking_board):
+    def _update_active_targets_with_hit(self, new_hit):
         """
-        Loại bỏ các mục tiêu không còn hợp lệ khỏi hàng đợi.
-        (Đã bị bắn, nằm ngoài biên, hoặc đã là HIT/MISS).
+        Thêm điểm HIT mới vào cụm đang hoạt động hoặc tạo cụm mới.
         """
-        cleaned_queue = deque()
-        for r, c in self.target_queue:
-            if self._in_bounds(r, c) and tracking_board.grid[r][c] == CellState.EMPTY and ((r,c) in self.possible_shots):
-                cleaned_queue.append((r, c))
-        self.target_queue = cleaned_queue
-
-    def _refine_orientation(self):
-        """
-        Suy luận hướng của con tàu đang bị tấn công nếu có ít nhất 2 điểm trúng.
-        """
-        if len(self.hits) < 2: return
+        connected_targets = []
+        for target in self.active_targets:
+            for hit_coord in target.hits_in_cluster:
+                if abs(new_hit[0] - hit_coord[0]) + abs(new_hit[1] - hit_coord[1]) == 1: 
+                    connected_targets.append(target)
+                    break
         
-        # Sắp xếp các điểm trúng để dễ dàng xác định hướng
-        sorted_hits = sorted(self.hits) 
-        r0, c0 = sorted_hits[0]
-        r1, c1 = sorted_hits[1]
+        if not connected_targets:
+            new_target = ActiveTarget(new_hit)
+            self.active_targets.append(new_target)
+            # self._refine_target_info(new_target) # Refined info will be called in get_move
+        else:
+            main_target = connected_targets[0]
+            if new_hit not in main_target.hits_in_cluster:
+                main_target.hits_in_cluster.append(new_hit)
+            
+            for other_target in connected_targets[1:]:
+                main_target.hits_in_cluster.extend(other_target.hits_in_cluster)
+                self.active_targets.remove(other_target)
+            
+            main_target.hits_in_cluster = list(set(main_target.hits_in_cluster))
+            # self._refine_target_info(main_target) # Refined info will be called in get_move
 
-        if r0 == r1: # Cùng hàng -> ngang
-            self.last_oriented = 'h'
-        elif c0 == c1: # Cùng cột -> dọc
-            self.last_oriented = 'v'
-        # Nếu chưa xác định được (ví dụ: hits là A1, B2) thì last_oriented vẫn là None,
-        # và AI sẽ tiếp tục bắn các ô xung quanh hình chữ thập.
-
-    def _grow_target_queue_from_hits(self):
+    def _refine_target_info(self, target: ActiveTarget, tracking_board, remaining_ships):
         """
-        Mở rộng hàng đợi mục tiêu dựa trên các điểm HIT hiện có và hướng suy luận.
+        Cập nhật hướng và hàng đợi mục tiêu cho một ActiveTarget cụ thể,
+        có tính đến kích thước của các tàu còn lại.
         """
-        if not self.hits: return
-        
-        # Sắp xếp lại hits để xử lý (đảm bảo thứ tự tăng dần của tọa độ)
-        hits_sorted = sorted(self.hits)
-        
-        candidates = set() # Dùng set để tránh trùng lặp
+        hits = sorted(target.hits_in_cluster)
+        current_len = len(hits)
 
-        if self.last_oriented == 'h': # Đã xác định là ngang
-            row = hits_sorted[0][0]
-            min_col = min(h[1] for h in hits_sorted)
-            max_col = max(h[1] for h in hits_sorted)
-            candidates.add((row, min_col - 1)) # Ô bên trái ngoài cùng
-            candidates.add((row, max_col + 1)) # Ô bên phải ngoài cùng
-        elif self.last_oriented == 'v': # Đã xác định là dọc
-            col = hits_sorted[0][1]
-            min_row = min(h[0] for h in hits_sorted)
-            max_row = max(h[0] for h in hits_sorted)
-            candidates.add((min_row - 1, col)) # Ô phía trên ngoài cùng
-            candidates.add((max_row + 1, col)) # Ô phía dưới ngoài cùng
-        else: # Chưa xác định được hướng (chỉ có 1 HIT hoặc HIT chéo)
-            for r, c in hits_sorted:
+        # Cập nhật độ dài tàu tiềm năng dựa trên hits
+        target.min_possible_length = current_len
+        
+        # 1. Suy luận hướng
+        if current_len >= 2:
+            is_horizontal = all(h[0] == hits[0][0] for h in hits)
+            is_vertical = all(h[1] == hits[0][1] for h in hits)
+            
+            if is_horizontal:
+                target.orientation = 'h'
+            elif is_vertical:
+                target.orientation = 'v'
+            else:
+                target.orientation = None
+        else:
+            target.orientation = None
+        
+        # 2. Xây dựng/Tái tạo hàng đợi mục tiêu thông minh hơn
+        target.target_queue.clear()
+        candidates = set()
+        
+        # Lấy độ dài tối đa của tàu còn lại có thể phù hợp
+        remaining_ship_lengths = sorted([s.size for s in remaining_ships if not getattr(s, "is_sunk", False)], reverse=True)
+        # Chỉ xét những tàu có thể dài hơn cụm hits hiện tại
+        potential_lengths = [L for L in remaining_ship_lengths if L >= current_len]
+        
+        if not potential_lengths: # Nếu không còn tàu nào có thể dài như cụm hits, thì cụm này có thể đã đủ dài hoặc lỗi
+            # Lúc này, có thể tàu đã chìm nhưng chưa được báo cáo, hoặc là lỗi logic
+            # Để an toàn, chúng ta sẽ không thêm mục tiêu nào vào hàng đợi của cụm này
+            return
+
+        target.max_possible_length = max(potential_lengths)
+
+        if target.orientation == 'h':
+            row = hits[0][0]
+            min_col = min(h[1] for h in hits)
+            max_col = max(h[1] for h in hits)
+            
+            # Thăm dò về phía trái
+            for offset in range(1, target.max_possible_length - current_len + 1):
+                c = min_col - offset
+                if self._in_bounds(row, c) and tracking_board.grid[row][c] == CellState.EMPTY:
+                    candidates.add((row, c))
+                else: # Nếu gặp MISS/SUNK/ngoài biên, dừng tìm kiếm theo hướng này
+                    break
+
+            # Thăm dò về phía phải
+            for offset in range(1, target.max_possible_length - current_len + 1):
+                c = max_col + offset
+                if self._in_bounds(row, c) and tracking_board.grid[row][c] == CellState.EMPTY:
+                    candidates.add((row, c))
+                else: # Nếu gặp MISS/SUNK/ngoài biên, dừng tìm kiếm theo hướng này
+                    break
+
+        elif target.orientation == 'v':
+            col = hits[0][1]
+            min_row = min(h[0] for h in hits)
+            max_row = max(h[0] for h in hits)
+
+            # Thăm dò về phía trên
+            for offset in range(1, target.max_possible_length - current_len + 1):
+                r = min_row - offset
+                if self._in_bounds(r, col) and tracking_board.grid[r][col] == CellState.EMPTY:
+                    candidates.add((r, col))
+                else: # Dừng tìm kiếm theo hướng này
+                    break
+
+            # Thăm dò về phía dưới
+            for offset in range(1, target.max_possible_length - current_len + 1):
+                r = max_row + offset
+                if self._in_bounds(r, col) and tracking_board.grid[r][col] == CellState.EMPTY:
+                    candidates.add((r, col))
+                else: # Dừng tìm kiếm theo hướng này
+                    break
+        else: # Chưa xác định hướng (chỉ 1 hit), bắn xung quanh tất cả các hits trong cụm
+            for r, c in hits:
                 for nr, nc in self._neighbors4(r, c):
-                    candidates.add((nr, nc))
+                    if self._in_bounds(nr, nc) and tracking_board.grid[nr][nc] == CellState.EMPTY:
+                        candidates.add((nr, nc))
         
-        # Thêm các mục tiêu hợp lệ vào hàng đợi, ưu tiên các ô gần nhất với cụm HIT
+        # Ưu tiên các ô gần tâm cụm HIT
+        center_r = sum(r for r, _ in hits) / current_len
+        center_c = sum(c for _, c in hits) / current_len
         scored_candidates = []
-        center_r = sum(r for r, _ in self.hits) / len(self.hits)
-        center_c = sum(c for _, c in self.hits) / len(self.hits)
-
         for r, c in candidates:
-            if self._in_bounds(r, c) and ((r,c) in self.possible_shots):
-                # Tính khoảng cách Manhattan đến tâm của cụm HIT
+            if ((r,c) in self.possible_shots): # Đảm bảo chưa bắn
                 dist = abs(r - center_r) + abs(c - center_c)
                 scored_candidates.append(((r, c), dist))
         
-        # Sắp xếp để bắn các ô gần cụm HIT nhất trước
         scored_candidates.sort(key=lambda x: x[1])
-        
-        # Thêm vào target_queue nếu chưa có
         for (coord, _) in scored_candidates:
-            if coord not in self.target_queue: # Đảm bảo không thêm trùng lặp
-                self.target_queue.append(coord)
+            if coord not in target.target_queue: 
+                target.target_queue.append(coord)
 
-    def _reseed_target_queue(self, tracking_board):
+    def _prune_target_queue_for_cluster(self, target: ActiveTarget, tracking_board):
         """
-        Tái tạo lại hàng đợi target từ các điểm HIT hiện có.
-        Hữu ích khi hàng đợi cũ bị cạn hoặc không còn hợp lệ.
+        Loại bỏ các mục tiêu không còn hợp lệ khỏi hàng đợi của một cụm.
         """
-        self.target_queue.clear()
-        self._grow_target_queue_from_hits()
-        self._prune_target_queue(tracking_board)
+        cleaned_queue = deque()
+        for r, c in target.target_queue:
+            if self._in_bounds(r, c) and tracking_board.grid[r][c] == CellState.EMPTY and ((r,c) in self.possible_shots):
+                cleaned_queue.append((r, c))
+        target.target_queue = cleaned_queue
+    
+    def _cleanup_active_targets_after_sunk(self, sunk_ship_obj):
+        """
+        Dọn dẹp lại active_targets sau khi một tàu chìm.
+        """
+        if sunk_ship_obj is None: return
+        sunk_coords = set(sunk_ship_obj.coordinates)
+
+        targets_to_keep = []
+        for target in self.active_targets:
+            original_hits_count = len(target.hits_in_cluster)
+            target.hits_in_cluster = [h for h in target.hits_in_cluster if h not in sunk_coords]
+            
+            if not target.hits_in_cluster:
+                continue
+            
+            if len(target.hits_in_cluster) < original_hits_count:
+                # Nếu hits giảm, cần refine lại thông tin (hướng, queue, độ dài)
+                # Tuy nhiên, refine_target_info giờ đây được gọi trong get_move,
+                # nên việc này sẽ tự động được xử lý ở lượt tiếp theo.
+                pass 
+            
+            targets_to_keep.append(target)
+        
+        self.active_targets = targets_to_keep
+
+
+    def _sort_active_targets(self):
+        """
+        Sắp xếp active_targets để ưu tiên các cụm có nhiều hits hơn,
+        hoặc đã có hướng rõ ràng, hoặc có target_queue lớn hơn.
+        """
+        def sort_key(target: ActiveTarget):
+            orientation_score = 2 if target.orientation else 0 # Orientated targets get higher priority
+            hits_count = len(target.hits_in_cluster)
+            queue_size = len(target.target_queue) # Having more options is good
+            
+            # Prioritize: (Has_Orientation, Hits_Count, Queue_Size)
+            return (orientation_score, hits_count, queue_size) 
+        
+        self.active_targets.sort(key=sort_key, reverse=True)
+
 
     # --------- Logic chế độ HUNT (săn tìm) ----------
+    def _can_place_segment(self, segment_coords, tracking_board):
+        """
+        Kiểm tra xem một đoạn có thể chứa một phần của tàu không,
+        có tính đến các ô MISS/SUNK và các ô HIT hiện tại (không thuộc ActiveTarget nào).
+        """
+        for r, c in segment_coords:
+            if not self._in_bounds(r, c): return False
+            current_state = tracking_board.grid[r][c]
+            if current_state == CellState.MISS or current_state == CellState.SUNK_SHIP:
+                return False
+            
+            if current_state == CellState.HIT:
+                is_hit_in_active_target = False
+                for target in self.active_targets:
+                    if (r,c) in target.hits_in_cluster:
+                        is_hit_in_active_target = True
+                        break
+                if not is_hit_in_active_target:
+                    return False 
+        return True
+
     def _compute_probability_grid(self, tracking_board, remaining_ships):
-        """
-        Tính toán bản đồ xác suất cho mỗi ô.
-        Giá trị càng cao nghĩa là ô đó có nhiều khả năng chứa một con tàu chưa chìm.
-        """
         n = self.board_size
         scores = [[0.0] * n for _ in range(n)]
         
         if not remaining_ships: 
-            return scores # Không còn tàu để săn
+            return scores 
         
-        # Lọc ra độ dài các tàu chưa bị chìm
         ship_lengths = [s.size for s in remaining_ships if not getattr(s, "is_sunk", False)]
         if not ship_lengths:
             return scores
 
-        # Hàm kiểm tra liệu một đoạn tàu có thể đặt được không
-        def can_place_segment(segment_coords, exclude_hits=False):
-            """
-            Kiểm tra xem một đoạn có thể chứa một phần của tàu không.
-            Nếu exclude_hits=True, đoạn đó không được chứa bất kỳ ô HIT nào.
-            """
-            for r, c in segment_coords:
-                if not self._in_bounds(r, c): return False
-                current_state = tracking_board.grid[r][c]
-                if current_state == CellState.MISS or current_state == CellState.SUNK_SHIP:
-                    return False
-                if exclude_hits and current_state == CellState.HIT: # Dùng cho việc đếm khả năng mới
-                    return False
-            return True
-
-        # Đếm số cách mỗi ô có thể chứa một con tàu (phương pháp "count-based" probability)
-        # Bằng cách này, các ô ở giữa hoặc các ô có thể bắt đầu nhiều đoạn tàu sẽ có điểm cao hơn
         for L in ship_lengths:
+            # Horizontal placements
             for r in range(n):
-                for c in range(n):
-                    # Đặt ngang
-                    if c + L <= n:
-                        segment = [(r, c + i) for i in range(L)]
-                        if can_place_segment(segment):
-                            for sr, sc in segment:
-                                if tracking_board.grid[sr][sc] == CellState.EMPTY:
-                                    scores[sr][sc] += 1.0 # Đếm số cách đặt qua ô này
-                    # Đặt dọc
-                    if r + L <= n:
-                        segment = [(r + i, c) for i in range(L)]
-                        if can_place_segment(segment):
-                            for sr, sc in segment:
-                                if tracking_board.grid[sr][sc] == CellState.EMPTY:
-                                    scores[sr][sc] += 1.0
-
-        # Nếu đang có các điểm HIT nhưng chưa chìm, ưu tiên các ô liền kề chúng cao hơn
-        # để AI tập trung vào việc xác định và diệt tàu.
-        if self.hits:
-            for r, c in self.hits:
-                for nr, nc in self._neighbors4(r, c):
-                    if self._in_bounds(nr, nc) and tracking_board.grid[nr][nc] == CellState.EMPTY:
-                        scores[nr][nc] += 5.0 # Tăng điểm đáng kể
+                for c in range(n - L + 1):
+                    segment = [(r, c + i) for i in range(L)]
+                    if self._can_place_segment(segment, tracking_board): 
+                        for sr, sc in segment:
+                            if tracking_board.grid[sr][sc] == CellState.EMPTY: 
+                                scores[sr][sc] += 1.0 
+            # Vertical placements
+            for c in range(n):
+                for r in range(n - L + 1):
+                    segment = [(r + i, c) for i in range(L)]
+                    if self._can_place_segment(segment, tracking_board): 
+                        for sr, sc in segment:
+                            if tracking_board.grid[sr][sc] == CellState.EMPTY: 
+                                scores[sr][sc] += 1.0
         
         return scores
 
     def _get_best_parity_for_hunt(self, remaining_ships):
-        """
-        Xác định parity tốt nhất để săn (0 hoặc 1) dựa trên độ dài tàu còn lại.
-        Nếu còn tàu có độ dài lẻ, sẽ ưu tiên parity đó.
-        Nếu tất cả tàu đều có độ dài chẵn, cả hai parity đều như nhau, hoặc có thể ưu tiên một cái cụ thể.
-        """
         lengths = [s.size for s in remaining_ships if not getattr(s, "is_sunk", False)]
         
-        # Nếu còn tàu có độ dài 1 (Submarine trong cấu hình mặc định là 3, Destroyer là 2)
-        # thì parity không còn hiệu quả lắm.
-        if 1 in lengths:
-            return -1 # Tắt parity
+        if 1 in lengths: 
+            return -1 
         
-        # Nếu còn tàu có độ dài lẻ, ưu tiên parity mà các tàu lẻ này có thể che phủ tốt nhất
-        # (Ví dụ: một tàu dài 3 sẽ luôn chiếm 2 ô chẵn và 1 ô lẻ, hoặc ngược lại)
-        # Chiến lược phổ biến là ưu tiên các ô xen kẽ (ví dụ: (r+c)%2 == 0) để bao phủ diện tích.
-        
-        # Đơn giản nhất: nếu còn tàu có độ dài lẻ, nó sẽ ưu tiên một parity nào đó.
-        # Ở đây, ta sẽ chọn parity 0 (tức là (r+c) là số chẵn) làm ưu tiên mặc định cho parity hunt.
-        # Điều này giúp bao phủ bàn cờ theo kiểu bàn cờ vua.
-        return 0 
-
-    def _get_near_hit_bonus_map(self, tracking_board):
-        """
-        Tính toán bản đồ bonus cho các ô gần với điểm HIT chưa chìm.
-        """
-        bonus = defaultdict(float) # Default to 0.0
-        n = self.board_size
-        
-        # Chỉ áp dụng bonus nếu đang ở hunt mode và có hits nhưng chưa chìm
-        if self.mode == 'hunt' and self.hits: 
-            for r, c in self.hits:
-                # Tăng bonus cho các ô láng giềng trống xung quanh điểm HIT
-                for nr, nc in self._neighbors4(r, c):
-                    if self._in_bounds(nr, nc) and tracking_board.grid[nr][nc] == CellState.EMPTY:
-                        bonus[(nr, nc)] += 0.5 # Bonus nhẹ hơn so với khi ở target mode
-        return bonus
+        return 0

@@ -1,5 +1,5 @@
 # FILE: gui_game.py
-# PHIÊN BẢN HOÀN CHỈNH - TÍCH HỢP ÂM THANH VÀ ĐỒ HỌA NÂNG CAO (V3 - Khắc phục layout)
+# PHIÊN BẢN HOÀN CHỈNH - TÍCH HỢP ÂM THANH VÀ ĐỒ HỌA NÂNG CAO (V6 - FIX lỗi Assignment in Lambda)
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog
@@ -7,7 +7,6 @@ from PIL import Image, ImageTk
 import os 
 
 # *** THÊM IMPORT PYGAME ***
-from attr import s
 import pygame
 
 from logic_game import GameState, CellState, Ship, Board, FLEET_CONFIG
@@ -43,12 +42,13 @@ COLORS = {
     "button_active": "#2D3748", # Button active state (e.g., status label background)
     "selection_highlight": "#FFD700", # Gold-like for selected ship
     "shipyard_bg": "#1E3A8A", # Slightly lighter blue for shipyard frame
+    "title_bg": "black", # For difficulty screen title background
 }
 
 # Fonts (Using Arial for wider compatibility)
 FONTS = {
     "title": ("Arial Black", 36, "bold"),
-    "subtitle": ("Arial", 18, "bold"),
+    "subtitle": ("Arial", 18, "bold", "underline"), 
     "button": ("Arial", 14, "bold"),
     "label": ("Arial", 10),
     "status": ("Arial", 12, "bold")
@@ -136,9 +136,9 @@ class BattleshipGUI:
         else:
             self.difficulty_window.configure(bg="#1f2937") 
 
-        title_frame = tk.Frame(self.difficulty_window, bg="black", bd=0) 
+        title_frame = tk.Frame(self.difficulty_window, bg=COLORS["title_bg"], bd=0) 
         title_frame.pack(pady=(80, 40))
-        title_label = tk.Label(title_frame, text="CHỌN ĐỘ KHÓ", font=FONTS["title"], fg="white", bg="black", padx=20, pady=5)
+        title_label = tk.Label(title_frame, text="CHỌN ĐỘ KHÓ", font=FONTS["title"], fg="white", bg=COLORS["title_bg"], padx=20, pady=5)
         title_label.pack()
 
         btn_font = FONTS["button"]
@@ -174,6 +174,30 @@ class BattleshipGUI:
         
         self.difficulty_window.protocol("WM_DELETE_WINDOW", self.root.destroy)
 
+    # --- Helper methods for shipyard label hover effects ---
+    def _on_enter_ship_label(self, event, ship):
+        if not ship.coordinates and self.selected_ship != ship:
+            event.widget['background'] = COLORS["button_hover"]
+    
+    def _on_leave_ship_label(self, event, ship):
+        if not ship.coordinates and self.selected_ship != ship:
+            event.widget['background'] = COLORS["ship_deck_base"]
+        elif self.selected_ship == ship:
+             event.widget['background'] = COLORS["selection_highlight"]
+        else: # If placed and not selected
+             event.widget['background'] = COLORS["ship_deck_placed"]
+    
+    # --- Helper methods for ready button hover effects ---
+    def _on_enter_ready_button(self, event):
+        if event.widget['state'] == 'normal': 
+            event.widget.config(background=COLORS["button_hover"])
+    
+    def _on_leave_ready_button(self, event):
+        if event.widget['state'] == 'normal': 
+            event.widget.config(background=COLORS["button_normal"])
+        elif event.widget['state'] == 'disabled': # Keep normal bg for disabled
+            event.widget.config(background=COLORS["button_normal"])
+
     def on_board_click(self, r, c):
         self.play_sound('click')
         if not self.game or self.game.ai_board is not None: return 
@@ -191,7 +215,10 @@ class BattleshipGUI:
                 
                 if all(s.coordinates for s in self.game.player_fleet):
                     self.status_label.config(text="Đã đặt xong! Nhấn Ready để bắt đầu.")
-                    self.ready_button.config(state="normal", bg=COLORS["button_hover"])
+                    self.ready_button.config(state="normal", bg=COLORS["button_normal"]) # Set to normal bg first
+                    # Rebind hover for active ready button
+                    self.ready_button.bind("<Enter>", self._on_enter_ready_button)
+                    self.ready_button.bind("<Leave>", self._on_leave_ready_button)
                 else: 
                     self.status_label.config(text="Đặt tàu thành công! Chọn tàu tiếp theo.")
             else: 
@@ -203,16 +230,16 @@ class BattleshipGUI:
                 ship_lbl = self.shipyard_widgets[ship_to_edit.name]
                 ship_lbl.config(bg=COLORS["ship_deck_base"], fg=COLORS["text_light"], cursor="hand2")
                 ship_lbl.bind("<Button-1>", lambda e, s=ship_to_edit: self.select_ship(s))
-                # Rebind hover effects
-                def on_enter_ship_lbl(e): e.widget['background'] = COLORS["button_hover"] if self.selected_ship != s else COLORS["selection_highlight"]
-                def on_leave_ship_lbl(e): e.widget['background'] = COLORS["ship_deck_base"] if self.selected_ship != s else COLORS["selection_highlight"]
-                ship_lbl.bind("<Enter>", on_enter_ship_lbl)
-                ship_lbl.bind("<Leave>", on_leave_ship_lbl)
+                # Rebind hover effects using the new class methods
+                ship_lbl.bind("<Enter>", lambda e, s=ship_to_edit: self._on_enter_ship_label(e, s))
+                ship_lbl.bind("<Leave>", lambda e, s=ship_to_edit: self._on_leave_ship_label(e, s))
 
 
                 self.select_ship(ship_to_edit) 
                 self.update_boards()
                 self.ready_button.config(state="disabled", bg=COLORS["button_normal"])
+                self.ready_button.unbind("<Enter>") # Remove hover for disabled button
+                self.ready_button.unbind("<Leave>")
                 self.status_label.config(text=f"Đang sửa {ship_to_edit.name}. Hãy đặt lại.")
 
     def select_ship(self, ship):
@@ -294,48 +321,51 @@ class BattleshipGUI:
     def setup_main_window(self):
         for widget in self.root.winfo_children(): widget.destroy()
 
+        self.root.state('zoomed') 
+        self.root.update_idletasks() 
+
+        screen_width = self.root.winfo_width()
+        screen_height = self.root.winfo_height()
+
         if self.assets_loaded:
-            self.root.update_idletasks() 
-            screen_width = self.root.winfo_screenwidth()
-            screen_height = self.root.winfo_screenheight()
             try:
-                self.images['bg_main'] = ImageTk.PhotoImage(Image.open(os.path.join(IMAGE_DIR, "background_main.png")).resize((screen_width, screen_height), Image.LANCZOS))
+                bg_main_pil = Image.open(os.path.join(IMAGE_DIR, "background_main.png"))
+                self.images['bg_main'] = ImageTk.PhotoImage(bg_main_pil.resize((screen_width, screen_height), Image.LANCZOS))
             except FileNotFoundError as e:
                 print(f"Cảnh báo: Không tải được background_main.png. Lỗi: {e}. Sử dụng màu nền thay thế.")
                 self.images['bg_main'] = None
 
         self.main_bg_canvas = tk.Canvas(self.root, highlightthickness=0)
-        self.main_bg_canvas.pack(fill="both", expand=True)
+        self.main_bg_canvas.pack(fill="both", expand=True) 
         
         if self.assets_loaded and self.images.get('bg_main'):
             self.main_bg_canvas.create_image(0, 0, image=self.images['bg_main'], anchor="nw")
         else:
             self.main_bg_canvas.configure(bg=COLORS["water_base"]) 
 
-        # Main game content frame to hold everything
         game_content_frame = tk.Frame(self.main_bg_canvas, bg=COLORS["water_base"], bd=0, relief="flat")
-        game_content_frame.grid_rowconfigure(0, weight=1) # Allow top row to expand vertically
-        game_content_frame.grid_columnconfigure((0, 1, 2), weight=1) # Allow columns to expand horizontally
+        self.main_bg_canvas.create_window(screen_width / 2, screen_height / 2, window=game_content_frame, anchor="center")
+        
+        game_content_frame.grid_rowconfigure(0, weight=1) 
+        game_content_frame.grid_columnconfigure((0, 1, 2), weight=1) 
 
-        # Top area frame for 3 columns (shipyard, player board, AI board)
         top_game_area_frame = tk.Frame(game_content_frame, bg=COLORS["water_base"])
-        top_game_area_frame.grid(row=0, column=0, columnspan=3, pady=10, sticky="nsew") # Place it in row 0 of game_content_frame
+        top_game_area_frame.grid(row=0, column=0, columnspan=3, pady=10, sticky="nsew") 
 
-        # Configure columns within top_game_area_frame
-        top_game_area_frame.grid_columnconfigure(0, weight=1, minsize=200) # Shipyard column
-        top_game_area_frame.grid_columnconfigure(1, weight=1, minsize=N * CELL_SIZE) # Player board column
-        top_game_area_frame.grid_columnconfigure(2, weight=1, minsize=N * CELL_SIZE) # AI board column
-        top_game_area_frame.grid_rowconfigure(0, weight=1) # Allow the single row to expand
+        top_game_area_frame.grid_columnconfigure(0, weight=1, minsize=CELL_SIZE * 5) 
+        top_game_area_frame.grid_columnconfigure(1, weight=2, minsize=N * CELL_SIZE) 
+        top_game_area_frame.grid_columnconfigure(2, weight=2, minsize=N * CELL_SIZE) 
+        top_game_area_frame.grid_rowconfigure(0, weight=1) 
 
-        # --- Shipyard Column (New) ---
+        # --- Shipyard Column ---
         shipyard_column = tk.Frame(top_game_area_frame, bg=COLORS["water_base"])
         shipyard_column.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         self.shipyard_outer_frame = tk.Frame(shipyard_column, bg=COLORS["shipyard_bg"], padx=10, pady=10, bd=2, relief="groove")
-        self.shipyard_outer_frame.pack(fill="both", expand=True) # Occupy all available space in its column
+        self.shipyard_outer_frame.pack(fill="both", expand=True) 
         tk.Label(self.shipyard_outer_frame, text="XƯỞNG TÀU", font=FONTS["subtitle"], fg=COLORS["text_light"], bg=COLORS["shipyard_bg"]).pack(pady=(0,10))
-        self.shipyard_frame = tk.Frame(self.shipyard_outer_frame, bg=COLORS["shipyard_bg"]) # Inner frame for ship labels
-        self.shipyard_frame.pack(fill="x") # Ship labels go here
+        self.shipyard_frame = tk.Frame(self.shipyard_outer_frame, bg=COLORS["shipyard_bg"]) 
+        self.shipyard_frame.pack(fill="x") 
 
         # --- Player Board Column ---
         player_column = tk.Frame(top_game_area_frame, bg=COLORS["water_base"])
@@ -357,9 +387,9 @@ class BattleshipGUI:
 
         # --- Bottom Controls Frame (Spanning all columns) ---
         bottom_controls_frame = tk.Frame(game_content_frame, bg=COLORS["water_base"], bd=0)
-        bottom_controls_frame.grid(row=1, column=0, columnspan=3, pady=10, sticky="ew") # Place it in row 1 of game_content_frame, spanning 3 columns
+        bottom_controls_frame.grid(row=1, column=0, columnspan=3, pady=10, sticky="ew") 
 
-        self.status_label = tk.Label(bottom_controls_frame, text="...", font=FONTS["status"], bg=COLORS["button_active"], fg=COLORS["text_light"], height=2, wraplength=400); self.status_label.pack(pady=5, fill="x", padx=20)
+        self.status_label = tk.Label(bottom_controls_frame, text="...", font=FONTS["status"], bg=COLORS["button_active"], fg=COLORS["text_light"], height=2, wraplength=int(screen_width * 0.7)); self.status_label.pack(pady=5, fill="x", padx=20)
         self.ai_strategy_label = tk.Label(bottom_controls_frame, text="AI Strategy: None", font=FONTS["label"], fg=COLORS["text_light"], bg=COLORS["water_base"]); self.ai_strategy_label.pack(pady=2)
 
         control_frame = tk.Frame(bottom_controls_frame, bg=COLORS["water_base"]); control_frame.pack(pady=10)
@@ -386,36 +416,19 @@ class BattleshipGUI:
         
         self.root.bind("<Button-3>", self.rotate_ship)
         
-        # Adjust window size for 3 columns more dynamically
-        # Min width for shipyard to accommodate labels/buttons
-        shipyard_content_width = 200 # Estimate required width for shipyard labels
-        board_display_width = N * CELL_SIZE 
-        # Total content width: shipyard + player board + AI board + padding
-        total_content_width = shipyard_content_width + board_display_width * 2 + 60 # 2x padx=10 for shipyard_column, 2x padx=10 for player_column, 2x padx=10 for ai_column (total 60)
-        
-        # Max height for boards (10*40 = 400px), plus titles, status, controls
-        total_content_height = board_display_width + 150 # Board height + space for titles/status/controls
-        
-        self.root.geometry(f"{total_content_width}x{total_content_height}")
-        self.main_bg_canvas.create_window(total_content_width / 2, total_content_height / 2, window=game_content_frame, anchor="center") 
         self.root.update_idletasks() 
 
     def start_setup(self, difficulty):
         self.difficulty_window.destroy()
-        self.setup_main_window()
-        self.root.deiconify()
+        self.setup_main_window() 
+        self.root.deiconify() 
         
-        self.root.update_idletasks()
-        x = (self.root.winfo_screenwidth() // 2) - (self.root.winfo_width() // 2)
-        y = (self.root.winfo_screenheight() // 2) - (self.root.winfo_height() // 2)
-        self.root.geometry(f"+{x}+{y}")
-
         self.game = GameState()
         if difficulty == "1": self.ai = BlindAI(board_size=N); self.ai_strategy_label.config(text="AI Strategy: Dễ (Mù)")
         elif difficulty == "2": self.ai = HeuristicAI(board_size=N); self.ai_strategy_label.config(text="AI Strategy: Trung bình (Heuristic)")
         elif difficulty == "3": self.ai = HybridAI(board_size=N); self.ai_strategy_label.config(text="AI Strategy: Khó (Hybrid)")
         
-        self._initialize_shipyard_widgets() # Call new function to init all shipyard widgets
+        self._initialize_shipyard_widgets() 
         self.status_label.config(text="Click một tàu từ Xưởng Tàu để đặt.")
     
     def reset_game(self):
@@ -427,10 +440,10 @@ class BattleshipGUI:
     def _create_board(self, parent, is_player_board=False, is_ai_board=False):
         canvases = []
         board_frame = tk.Frame(parent, bg=COLORS["water_base"]) 
-        board_frame.pack() # Pack the board_frame into its parent column
+        board_frame.pack() 
 
         for r_idx in range(N):
-            row_canvases = [] # Temporarily store canvases for current row
+            row_canvases = [] 
             for c_idx in range(N):
                 canvas = tk.Canvas(board_frame, width=CELL_SIZE, height=CELL_SIZE, bg=COLORS['water_base'], highlightthickness=1, highlightbackground=COLORS['border_grid'])
                 if self.assets_loaded and 'water_tile' in self.images:
@@ -520,29 +533,17 @@ class BattleshipGUI:
             widget.destroy()
         self.shipyard_widgets.clear()
         
-        # Helper for shipyard button hover
-        def on_enter_ship_lbl(event, ship):
-            if not ship.coordinates: # Only show hover effect if not yet placed
-                event.widget['background'] = COLORS["button_hover"]
-        def on_leave_ship_lbl(event, ship):
-            if not ship.coordinates: # Only reset hover effect if not yet placed
-                event.widget['background'] = COLORS["ship_deck_base"]
-            elif self.selected_ship == ship: # If placed but currently selected, keep highlight
-                 event.widget['background'] = COLORS["selection_highlight"]
-            else: # If placed and not selected
-                 event.widget['background'] = COLORS["ship_deck_placed"]
-
+        # Use class methods directly for binding
         for ship in self.game.player_fleet:
             ship_text = f"{ship.name} ({ship.size} ô)" 
             lbl = tk.Label(self.shipyard_frame, text=ship_text, fg=COLORS["text_light"], bg=COLORS["ship_deck_base"], 
                            padx=10, pady=8, cursor="hand2", font=FONTS["label"], relief="flat", bd=0)
             lbl.pack(pady=4, fill="x")
             lbl.bind("<Button-1>", lambda e, s=ship: self.select_ship(s))
-            lbl.bind("<Enter>", lambda e, s=ship: on_enter_ship_lbl(e, s))
-            lbl.bind("<Leave>", lambda e, s=ship: on_leave_ship_lbl(e, s))
+            lbl.bind("<Enter>", lambda e, s=ship: self._on_enter_ship_label(e, s))
+            lbl.bind("<Leave>", lambda e, s=ship: self._on_leave_ship_label(e, s))
             self.shipyard_widgets[ship.name] = lbl
             
-            # If ship was already placed (e.g., during a reset and re-setup), update its initial look
             if ship.coordinates:
                 lbl.config(bg=COLORS["ship_deck_placed"], fg=COLORS["text_dark"], cursor="arrow")
                 lbl.unbind("<Button-1>")
@@ -554,16 +555,12 @@ class BattleshipGUI:
                                        relief="flat", padx=5, pady=8, state="disabled")
         self.ready_button.pack(pady=15)
         
-        def on_enter_ready_btn(e): 
-            if e.widget['state'] == 'normal': e.widget['background'] = COLORS["button_hover"]
-        def on_leave_ready_btn(e): 
-            if e.widget['state'] == 'normal': e.widget['background'] = COLORS["button_normal"]
-            elif e.widget['state'] == 'disabled': e.widget['background'] = COLORS["button_normal"]
-        self.ready_button.bind("<Enter>", on_enter_ready_btn)
-        self.ready_button.bind("<Leave>", on_leave_ready_btn)
+        # Bind hover events for the ready button using the new helper methods
+        self.ready_button.bind("<Enter>", self._on_enter_ready_button)
+        self.ready_button.bind("<Leave>", self._on_leave_ready_button)
 
         if all(s.coordinates for s in self.game.player_fleet):
-            self.ready_button.config(state="normal", bg=COLORS["button_normal"])
+            self.ready_button.config(state="normal", bg=COLORS["button_normal"]) 
         else:
             self.ready_button.config(state="disabled", bg=COLORS["button_normal"])
 
@@ -587,7 +584,7 @@ class BattleshipGUI:
                 if preview_segment_img:
                     img_pil = ImageTk.getimage(preview_segment_img) 
                     img_pil_alpha = img_pil.copy()
-                    alpha_val = 128 if is_placeable else 80 
+                    alpha_val = 150 if is_placeable else 90 
                     img_pil_alpha.putalpha(alpha_val) 
                     trans_img = ImageTk.PhotoImage(img_pil_alpha)
                     
@@ -624,9 +621,8 @@ class BattleshipGUI:
         self.play_sound('click')
         if self.selected_ship and self.selected_ship.name in self.shipyard_widgets:
             prev_ship_lbl = self.shipyard_widgets[self.selected_ship.name]
-            if not self.selected_ship.coordinates: # If it was selected but not placed
+            if not self.selected_ship.coordinates: 
                 prev_ship_lbl.config(relief="flat", bg=COLORS["ship_deck_base"], bd=0)
-            # If it was selected AND placed, its color is already ship_deck_placed
         self.selected_ship = None
         self.clear_preview()
         
