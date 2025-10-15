@@ -1,5 +1,5 @@
 # FILE: gui_game.py
-# PHIÊN BẢN HOÀN CHỈNH - TÍCH HỢP ÂM THANH VÀ ĐỒ HỌA NÂNG CAO (V6 - FIX lỗi Assignment in Lambda)
+# PHIÊN BẢN HOÀN CHỈNH - TÍCH HỢP ÂM THANH VÀ ĐỒ HỌA NÂNG CAO (V7 - Cải thiện thẩm mỹ & màu sắc)
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog
@@ -23,35 +23,43 @@ IMAGE_DIR = os.path.join(ASSET_DIR, "images")
 ICON_DIR = os.path.join(ASSET_DIR, "icons")
 SHIP_IMG_DIR = os.path.join(ASSET_DIR, "ships")
 
-# --- Updated COLORS and FONTS ---
+# --- Updated COLORS and FONTS (More vibrant and contrasting) ---
 COLORS = {
-    "water_base": "#284A6E",  # Darker blue, more oceanic
-    "ship_deck_base": "#5A6B7C", # Muted gray for ship body (for unplaced state)
-    "ship_deck_placed": "#404C5A", # Darker gray for placed ship in shipyard
-    "ship_gun_base": "#3C4955",  # Darker gray for guns/details
-    "hit_base": "#E04F5F",    # Brighter red for hit
-    "miss_base": "#5EC4FF",   # Lighter blue for miss splash
-    "sunk_base": "#1A222B",   # Almost black for sunk background
-    "preview_ok": "#58D683",  # Green for valid placement
-    "preview_err": "#FF7A6A", # Orange-red for invalid placement
-    "border_grid": "#4A5568", # Darker gray for grid lines
-    "text_light": "#E0E7EB",  # Light text color
-    "text_dark": "#1A222B",   # Dark text color
-    "button_normal": "#4A5568", # Button base
-    "button_hover": "#718096",  # Button hover
-    "button_active": "#2D3748", # Button active state (e.g., status label background)
-    "selection_highlight": "#FFD700", # Gold-like for selected ship
-    "shipyard_bg": "#1E3A8A", # Slightly lighter blue for shipyard frame
-    "title_bg": "black", # For difficulty screen title background
+    "background_dark": "#1A222B", # Rất tối, làm nền chính
+    "water_base": "#2C5282",    # Xanh biển đậm, nhưng tươi hơn
+    "water_light": "#4299E1",   # Xanh sáng cho một số hiệu ứng
+    
+    "ship_deck_base": "#A0AEC0",  # Xám bạc cho tàu chưa đặt
+    "ship_deck_placed": "#718096",# Xám đậm hơn cho tàu đã đặt trong shipyard
+    "ship_gun_base": "#4A5568",   # Xám than cho chi tiết súng
+    
+    "hit_base": "#FC8181",      # Đỏ hồng sáng cho hit
+    "miss_base": "#63B3ED",     # Xanh da trời sáng cho miss
+    "sunk_base": "#2D3748",     # Xám xanh rất đậm cho sunk background
+    
+    "preview_ok": "#68D391",    # Xanh lá cây tươi sáng
+    "preview_err": "#F6AD55",   # Cam vàng tươi sáng
+    
+    "border_grid": "#4A5568",   # Xám đậm cho lưới
+    "text_light": "#E2E8F0",    # Gần trắng cho chữ sáng
+    "text_dark": "#1A222B",     # Rất tối cho chữ tối
+    
+    "button_normal": "#4A5568", # Nút màu xám xanh
+    "button_hover": "#63B3ED",  # Nút sáng xanh khi hover
+    "button_active": "#2D3748", # Nền cho status/ai_strategy
+    "selection_highlight": "#FFD700", # Vàng kim nổi bật
+    "shipyard_bg": "#2A4365",   # Xanh đậm cho khung shipyard
+    "title_bg": "#1A202C",      # Đen đậm cho nền tiêu đề
+    "main_title_fg": "#FBD38D", # Vàng cam cho tiêu đề chính (ví dụ: Bảng của bạn)
 }
 
 # Fonts (Using Arial for wider compatibility)
 FONTS = {
     "title": ("Arial Black", 36, "bold"),
-    "subtitle": ("Arial", 18, "bold", "underline"), 
+    "subtitle": ("Arial", 20, "bold", "underline"), # Tăng kích thước, nhấn mạnh
     "button": ("Arial", 14, "bold"),
-    "label": ("Arial", 10),
-    "status": ("Arial", 12, "bold")
+    "label": ("Arial", 11, "bold"), # Tăng kích thước và làm đậm cho nhãn tàu
+    "status": ("Arial", 13, "bold") # Tăng kích thước cho status
 }
 
 class BattleshipGUI:
@@ -134,11 +142,11 @@ class BattleshipGUI:
             bg_label = tk.Label(self.difficulty_window, image=self.images['bg_difficulty'])
             bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         else:
-            self.difficulty_window.configure(bg="#1f2937") 
+            self.difficulty_window.configure(bg=COLORS["background_dark"]) 
 
         title_frame = tk.Frame(self.difficulty_window, bg=COLORS["title_bg"], bd=0) 
         title_frame.pack(pady=(80, 40))
-        title_label = tk.Label(title_frame, text="CHỌN ĐỘ KHÓ", font=FONTS["title"], fg="white", bg=COLORS["title_bg"], padx=20, pady=5)
+        title_label = tk.Label(title_frame, text="CHỌN ĐỘ KHÓ", font=FONTS["title"], fg=COLORS["main_title_fg"], bg=COLORS["title_bg"], padx=20, pady=5) # Màu tiêu đề chính
         title_label.pack()
 
         btn_font = FONTS["button"]
@@ -341,15 +349,15 @@ class BattleshipGUI:
         if self.assets_loaded and self.images.get('bg_main'):
             self.main_bg_canvas.create_image(0, 0, image=self.images['bg_main'], anchor="nw")
         else:
-            self.main_bg_canvas.configure(bg=COLORS["water_base"]) 
+            self.main_bg_canvas.configure(bg=COLORS["background_dark"]) # Fallback to dark background color
 
-        game_content_frame = tk.Frame(self.main_bg_canvas, bg=COLORS["water_base"], bd=0, relief="flat")
+        game_content_frame = tk.Frame(self.main_bg_canvas, bg=COLORS["background_dark"], bd=0, relief="flat") # Use dark background for content frame
         self.main_bg_canvas.create_window(screen_width / 2, screen_height / 2, window=game_content_frame, anchor="center")
         
         game_content_frame.grid_rowconfigure(0, weight=1) 
         game_content_frame.grid_columnconfigure((0, 1, 2), weight=1) 
 
-        top_game_area_frame = tk.Frame(game_content_frame, bg=COLORS["water_base"])
+        top_game_area_frame = tk.Frame(game_content_frame, bg=COLORS["background_dark"]) # Use dark background
         top_game_area_frame.grid(row=0, column=0, columnspan=3, pady=10, sticky="nsew") 
 
         top_game_area_frame.grid_columnconfigure(0, weight=1, minsize=CELL_SIZE * 5) 
@@ -358,41 +366,41 @@ class BattleshipGUI:
         top_game_area_frame.grid_rowconfigure(0, weight=1) 
 
         # --- Shipyard Column ---
-        shipyard_column = tk.Frame(top_game_area_frame, bg=COLORS["water_base"])
+        shipyard_column = tk.Frame(top_game_area_frame, bg=COLORS["background_dark"]) # Use dark background
         shipyard_column.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.shipyard_outer_frame = tk.Frame(shipyard_column, bg=COLORS["shipyard_bg"], padx=10, pady=10, bd=2, relief="groove")
+        self.shipyard_outer_frame = tk.Frame(shipyard_column, bg=COLORS["shipyard_bg"], padx=15, pady=15, bd=3, relief="raised") # Increased padding, border, and relief for more depth
         self.shipyard_outer_frame.pack(fill="both", expand=True) 
-        tk.Label(self.shipyard_outer_frame, text="XƯỞNG TÀU", font=FONTS["subtitle"], fg=COLORS["text_light"], bg=COLORS["shipyard_bg"]).pack(pady=(0,10))
+        tk.Label(self.shipyard_outer_frame, text="XƯỞNG TÀU", font=FONTS["subtitle"], fg=COLORS["main_title_fg"], bg=COLORS["shipyard_bg"]).pack(pady=(0,15)) # Increased pady
         self.shipyard_frame = tk.Frame(self.shipyard_outer_frame, bg=COLORS["shipyard_bg"]) 
         self.shipyard_frame.pack(fill="x") 
 
         # --- Player Board Column ---
-        player_column = tk.Frame(top_game_area_frame, bg=COLORS["water_base"])
+        player_column = tk.Frame(top_game_area_frame, bg=COLORS["background_dark"]) # Use dark background
         player_column.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
-        player_board_title_frame = tk.Frame(player_column, bg=COLORS["water_base"])
+        player_board_title_frame = tk.Frame(player_column, bg=COLORS["background_dark"]) # Use dark background
         player_board_title_frame.pack(pady=(0, 5))
-        tk.Label(player_board_title_frame, text="🧑 BẢNG CỦA BẠN", font=FONTS["subtitle"], fg=COLORS["text_light"], bg=COLORS["water_base"]).pack()
+        tk.Label(player_board_title_frame, text="🧑 BẢNG CỦA BẠN", font=FONTS["subtitle"], fg=COLORS["main_title_fg"], bg=COLORS["background_dark"]).pack() # Main title foreground
         self.player_canvas = self._create_board(player_column, is_player_board=True) 
 
         # --- AI Board Column ---
-        ai_column = tk.Frame(top_game_area_frame, bg=COLORS["water_base"])
+        ai_column = tk.Frame(top_game_area_frame, bg=COLORS["background_dark"]) # Use dark background
         ai_column.grid(row=0, column=2, sticky="nsew", padx=10, pady=10)
 
-        ai_board_title_frame = tk.Frame(ai_column, bg=COLORS["water_base"])
+        ai_board_title_frame = tk.Frame(ai_column, bg=COLORS["background_dark"]) # Use dark background
         ai_board_title_frame.pack(pady=(0, 5))
-        tk.Label(ai_board_title_frame, text="🤖 BẢNG ĐỐI THỦ", font=FONTS["subtitle"], fg=COLORS["text_light"], bg=COLORS["water_base"]).pack()
+        tk.Label(ai_board_title_frame, text="🤖 BẢNG ĐỐI THỦ", font=FONTS["subtitle"], fg=COLORS["main_title_fg"], bg=COLORS["background_dark"]).pack() # Main title foreground
         self.ai_canvas = self._create_board(ai_column, is_ai_board=True)
 
         # --- Bottom Controls Frame (Spanning all columns) ---
-        bottom_controls_frame = tk.Frame(game_content_frame, bg=COLORS["water_base"], bd=0)
+        bottom_controls_frame = tk.Frame(game_content_frame, bg=COLORS["background_dark"], bd=0) # Use dark background
         bottom_controls_frame.grid(row=1, column=0, columnspan=3, pady=10, sticky="ew") 
 
         self.status_label = tk.Label(bottom_controls_frame, text="...", font=FONTS["status"], bg=COLORS["button_active"], fg=COLORS["text_light"], height=2, wraplength=int(screen_width * 0.7)); self.status_label.pack(pady=5, fill="x", padx=20)
-        self.ai_strategy_label = tk.Label(bottom_controls_frame, text="AI Strategy: None", font=FONTS["label"], fg=COLORS["text_light"], bg=COLORS["water_base"]); self.ai_strategy_label.pack(pady=2)
+        self.ai_strategy_label = tk.Label(bottom_controls_frame, text="AI Strategy: None", font=FONTS["label"], fg=COLORS["text_light"], bg=COLORS["background_dark"]); self.ai_strategy_label.pack(pady=2)
 
-        control_frame = tk.Frame(bottom_controls_frame, bg=COLORS["water_base"]); control_frame.pack(pady=10)
+        control_frame = tk.Frame(bottom_controls_frame, bg=COLORS["background_dark"]); control_frame.pack(pady=10) # Use dark background
         
         btn_font = FONTS["button"]
         btn_bg_normal = COLORS["button_normal"]
@@ -404,13 +412,13 @@ class BattleshipGUI:
 
         reset_btn = tk.Button(control_frame, text="🔄 Reset", width=10, command=self.reset_game, 
                               bg=btn_bg_normal, fg=btn_fg_normal, font=btn_font, relief="flat", padx=5, pady=5)
-        reset_btn.grid(row=0, column=0, padx=5)
+        reset_btn.grid(row=0, column=0, padx=10) # Added padx
         reset_btn.bind("<Enter>", on_enter_ctrl_btn)
         reset_btn.bind("<Leave>", on_leave_ctrl_btn)
 
         quit_btn = tk.Button(control_frame, text="❌ Quit", width=10, command=self.root.quit, 
                              bg=btn_bg_normal, fg=btn_fg_normal, font=btn_font, relief="flat", padx=5, pady=5)
-        quit_btn.grid(row=0, column=1, padx=5)
+        quit_btn.grid(row=0, column=1, padx=10) # Added padx
         quit_btn.bind("<Enter>", on_enter_ctrl_btn)
         quit_btn.bind("<Leave>", on_leave_ctrl_btn)
         
@@ -439,7 +447,7 @@ class BattleshipGUI:
     
     def _create_board(self, parent, is_player_board=False, is_ai_board=False):
         canvases = []
-        board_frame = tk.Frame(parent, bg=COLORS["water_base"]) 
+        board_frame = tk.Frame(parent, bg=COLORS["water_base"], bd=2, relief="sunken") # Added border and relief for board
         board_frame.pack() 
 
         for r_idx in range(N):
@@ -533,7 +541,17 @@ class BattleshipGUI:
             widget.destroy()
         self.shipyard_widgets.clear()
         
-        # Use class methods directly for binding
+        def on_enter_ship_lbl(event, ship):
+            if not ship.coordinates and self.selected_ship != ship:
+                event.widget['background'] = COLORS["button_hover"]
+        def on_leave_ship_lbl(event, ship):
+            if not ship.coordinates and self.selected_ship != ship:
+                event.widget['background'] = COLORS["ship_deck_base"]
+            elif self.selected_ship == ship:
+                 event.widget['background'] = COLORS["selection_highlight"]
+            else: # If placed and not selected
+                 event.widget['background'] = COLORS["ship_deck_placed"]
+
         for ship in self.game.player_fleet:
             ship_text = f"{ship.name} ({ship.size} ô)" 
             lbl = tk.Label(self.shipyard_frame, text=ship_text, fg=COLORS["text_light"], bg=COLORS["ship_deck_base"], 
@@ -555,7 +573,6 @@ class BattleshipGUI:
                                        relief="flat", padx=5, pady=8, state="disabled")
         self.ready_button.pack(pady=15)
         
-        # Bind hover events for the ready button using the new helper methods
         self.ready_button.bind("<Enter>", self._on_enter_ready_button)
         self.ready_button.bind("<Leave>", self._on_leave_ready_button)
 
